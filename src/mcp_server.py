@@ -4,6 +4,8 @@ Transport: stdio (local process spawned by Claude Code).
 All logging goes to stderr — stdout is reserved for MCP JSON-RPC messages.
 """
 
+import asyncio
+import atexit
 import json
 import logging
 import sys
@@ -139,27 +141,6 @@ async def get_history(last_n: int = 10) -> str:
 
 
 @mcp.tool()
-async def search_nodes(query: str, num_results: int = 10) -> str:
-    """Find specific entities (people, tools, concepts, decisions) in the graph.
-
-    Returns entities with names, types/labels, and summaries.
-
-    Args:
-        query: Natural language query
-        num_results: Max results (default: 10)
-    """
-    await _ensure_init()
-    try:
-        results = await graph_service.search_nodes(query=query, num_results=num_results)
-        if not results:
-            return "No entities found."
-        return _fmt(results)
-    except Exception as e:
-        logger.error("search_nodes failed: %s", e)
-        return f"Error searching nodes: {e}"
-
-
-@mcp.tool()
 async def search_facts(query: str, num_results: int = 10) -> str:
     """Find facts (relationships between entities) in the knowledge graph.
 
@@ -192,7 +173,20 @@ async def get_status() -> str:
     return _fmt(status)
 
 
-# --- Entry point ---
+# --- Lifecycle ---
+
+def _cleanup() -> None:
+    """Close Neo4j connection on process exit."""
+    try:
+        loop = asyncio.get_event_loop()
+        if loop.is_running():
+            loop.create_task(graph_service.close())
+        else:
+            loop.run_until_complete(graph_service.close())
+    except Exception:
+        pass
+
+atexit.register(_cleanup)
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

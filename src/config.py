@@ -1,5 +1,7 @@
 """Configuration management via pydantic-settings + .env file."""
 
+from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -28,6 +30,7 @@ class Settings(BaseSettings):
     semaphore_limit: int = 5
 
 
+@lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Factory function — single import point for config."""
+    """Cached singleton — avoids re-parsing .env on every call."""
     return Settings()

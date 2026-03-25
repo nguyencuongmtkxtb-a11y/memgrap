@@ -10,6 +10,7 @@ from graphiti_core.search.search_config_recipes import (
     EDGE_HYBRID_SEARCH_RRF,
     NODE_HYBRID_SEARCH_RRF,
 )
+from graphiti_core.search.search_config import SearchResults
 
 from src.config import Settings
 from src.entity_types import ENTITY_TYPES
@@ -71,19 +72,19 @@ class GraphService:
         return [format_edge(e) for e in edges]
 
     async def search_nodes(self, query: str, num_results: int = 10) -> list[dict]:
-        """Search entity nodes via NODE_HYBRID_SEARCH_RRF recipe."""
+        """Search entity nodes via NODE_HYBRID_SEARCH_RRF recipe (public API)."""
         config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
         config.limit = num_results
-        results = await self.graphiti._search(
+        results: SearchResults = await self.graphiti.search_(
             query=query, config=config, group_ids=[self._settings.group_id],
         )
         return [format_node(n) for n in (results.nodes or [])]
 
     async def search_facts(self, query: str, num_results: int = 10) -> list[dict]:
-        """Search relationship edges via EDGE_HYBRID_SEARCH_RRF recipe."""
+        """Search relationship edges via EDGE_HYBRID_SEARCH_RRF recipe (public API)."""
         config = EDGE_HYBRID_SEARCH_RRF.model_copy(deep=True)
         config.limit = num_results
-        results = await self.graphiti._search(
+        results: SearchResults = await self.graphiti.search_(
             query=query, config=config, group_ids=[self._settings.group_id],
         )
         return [format_edge(e) for e in (results.edges or [])]

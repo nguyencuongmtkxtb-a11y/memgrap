@@ -30,7 +30,6 @@ docker compose ps
 | `recall` | Semantic search for relevant memories |
 | `understand_code` | Search code entities (patterns, tools, decisions) |
 | `get_history` | Retrieve memory timeline |
-| `search_nodes` | Find entities |
 | `search_facts` | Find relationships/facts |
 | `get_status` | Health check |
 
