@@ -31,6 +31,7 @@ docker compose ps
 | `understand_code` | Search code entities (patterns, tools, decisions) |
 | `get_history` | Retrieve memory timeline |
 | `search_facts` | Find relationships/facts |
+| `index_codebase` | Index source files into knowledge graph |
 | `get_status` | Health check |
 
 ## Architecture
@@ -43,7 +44,9 @@ Claude Code (stdio) --> MCP Server (FastMCP) --> Graphiti Core --> Neo4j (Docker
 
 ## Entity Types
 
-CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement
+**Memory:** CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement
+
+**Code Index:** CodeFile, CodeFunction, CodeClass, CodeImport
 
 ## Configuration
 

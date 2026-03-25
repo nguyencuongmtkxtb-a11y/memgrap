@@ -26,7 +26,7 @@ Claude Code (stdio) --> MCP Server (FastMCP) --> Graphiti Core --> Neo4j (Docker
 - **FastMCP** — MCP server framework (stdio transport)
 - **pydantic-settings** — config from .env
 
-## MCP Tools (6)
+## MCP Tools (7)
 | Tool | Purpose |
 |------|---------|
 | `remember` | Store info into knowledge graph |
@@ -34,7 +34,9 @@ Claude Code (stdio) --> MCP Server (FastMCP) --> Graphiti Core --> Neo4j (Docker
 | `understand_code` | Search code entities (nodes) |
 | `get_history` | Memory timeline |
 | `search_facts` | Find relationships/facts |
+| `index_codebase` | Parse + index source files (tree-sitter → Neo4j) |
 | `get_status` | Health check |
 
-## Entity Types (8)
-CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement
+## Entity Types
+**Memory (8):** CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement
+**Code Index (4):** CodeFile, CodeFunction, CodeClass, CodeImport

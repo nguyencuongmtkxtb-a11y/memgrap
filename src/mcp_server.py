@@ -163,6 +163,35 @@ async def search_facts(query: str, num_results: int = 10) -> str:
 
 
 @mcp.tool()
+async def index_codebase(path: str, extensions: str | None = None) -> str:
+    """Index a codebase directory into the knowledge graph.
+
+    Parses source files with tree-sitter, extracts functions/classes/imports,
+    and writes them directly to Neo4j for code intelligence queries.
+
+    Args:
+        path: Directory path to index (e.g. "D:/myproject/src")
+        extensions: Comma-separated extensions (default: ".py,.js,.ts,.tsx,.jsx")
+    """
+    await _ensure_init()
+    try:
+        from src.indexer.ast_parser import parse_directory
+        from src.indexer.neo4j_ingestor import CodeIndexer
+
+        ext_set = None
+        if extensions:
+            ext_set = {e.strip() if e.startswith(".") else f".{e.strip()}" for e in extensions.split(",")}
+
+        symbols = parse_directory(path, extensions=ext_set)
+        indexer = CodeIndexer(graph_service.graphiti.driver)
+        stats = await indexer.index_symbols(symbols)
+        return _fmt({"status": "indexed", "path": path, "symbols": len(symbols), **stats})
+    except Exception as e:
+        logger.error("index_codebase failed: %s", e)
+        return f"Error indexing codebase: {e}"
+
+
+@mcp.tool()
 async def get_status() -> str:
     """Check health of the memory system.
 
