@@ -1,0 +1,4 @@
+graphiti-core[anthropic]>=0.28.2
+mcp>=1.9.4
+python-dotenv>=1.0.1
+pydantic-settings>=2.0.0
