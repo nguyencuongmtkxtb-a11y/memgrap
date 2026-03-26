@@ -173,29 +173,44 @@ async def search_facts(query: str, num_results: int = 10) -> str:
 
 
 @mcp.tool()
-async def index_codebase(path: str, extensions: str | None = None) -> str:
+async def index_codebase(
+    path: str,
+    extensions: str | None = None,
+    full: bool = False,
+) -> str:
     """Index a codebase directory into the knowledge graph.
 
     Parses source files with tree-sitter, extracts functions/classes/imports,
     and writes them directly to Neo4j for code intelligence queries.
 
+    By default uses incremental mode (only new/changed files). Set full=True
+    to force a complete re-index of all files.
+
     Args:
         path: Directory path to index (e.g. "D:/myproject/src")
         extensions: Comma-separated extensions (default: ".py,.js,.ts,.tsx,.jsx")
+        full: Force full re-index instead of incremental (default: False)
     """
     await _ensure_init()
     try:
-        from src.indexer.ast_parser import parse_directory
-        from src.indexer.neo4j_ingestor import CodeIndexer
-
         ext_set = None
         if extensions:
             ext_set = {e.strip() if e.startswith(".") else f".{e.strip()}" for e in extensions.split(",")}
 
+        if not full:
+            # Incremental mode — only index new/changed files
+            from src.indexer.incremental_indexer import run_incremental_index
+            stats = await run_incremental_index(path, extensions=ext_set)
+            return _fmt({"status": "indexed_incremental", "path": path, **stats})
+
+        # Full mode — re-index everything
+        from src.indexer.ast_parser import parse_directory
+        from src.indexer.neo4j_ingestor import CodeIndexer
+
         symbols = parse_directory(path, extensions=ext_set)
         indexer = CodeIndexer(graph_service.graphiti.driver)
         stats = await indexer.index_symbols(symbols)
-        return _fmt({"status": "indexed", "path": path, "symbols": len(symbols), **stats})
+        return _fmt({"status": "indexed_full", "path": path, "symbols": len(symbols), **stats})
     except Exception as e:
         logger.error("index_codebase failed: %s", e)
         return f"Error indexing codebase: {e}"
