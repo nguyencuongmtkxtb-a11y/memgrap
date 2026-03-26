@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import neo4j from 'neo4j-driver'
-import { runQuery, getGroupId } from '@/lib/neo4j'
+import { runQuery } from '@/lib/neo4j'
 
 export async function GET(req: NextRequest) {
-  const gid = getGroupId()
   const { searchParams } = req.nextUrl
+  const project = searchParams.get('project') ?? ''
   const type = searchParams.get('type') ?? ''
   const search = searchParams.get('search') ?? ''
   const parsed = parseInt(searchParams.get('limit') ?? '100', 10)
@@ -14,13 +14,13 @@ export async function GET(req: NextRequest) {
     // Entity types are labels (Concept, Tool, etc.), not entity_type property
     const rows = await runQuery<{ n: Record<string, unknown> }>(
       `MATCH (n:Entity)
-       WHERE n.group_id = $gid
+       WHERE ($project = '' OR n.group_id = $project)
          AND ($type = '' OR $type IN labels(n))
          AND ($search = '' OR toLower(n.name) CONTAINS toLower($search))
        RETURN n
        ORDER BY n.created_at DESC
        LIMIT $limit`,
-      { gid, type, search, limit }
+      { project, type, search, limit }
     )
     return NextResponse.json({ nodes: rows.map((r) => r.n) })
   } catch (err) {

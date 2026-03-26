@@ -1,14 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { runQuery } from '@/lib/neo4j'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const project = req.nextUrl.searchParams.get('project') ?? ''
   try {
     const rows = await runQuery<{ s: Record<string, unknown> }>(
       `MATCH (s:SessionEvent)
+       WHERE ($project = '' OR s.project = $project)
        RETURN s
        ORDER BY s.ended_at DESC
        LIMIT 100`,
-      {}
+      { project }
     )
     const sessions = rows.map((r) => ({
       ...r.s,

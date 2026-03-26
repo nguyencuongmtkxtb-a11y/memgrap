@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import neo4j from 'neo4j-driver'
-import { runQuery, getGroupId } from '@/lib/neo4j'
+import { runQuery } from '@/lib/neo4j'
 
 export async function GET(req: NextRequest) {
-  const gid = getGroupId()
+  const project = req.nextUrl.searchParams.get('project') ?? ''
   const parsed = parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10)
   const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 200 : parsed, 500)))
   try {
@@ -14,11 +14,11 @@ export async function GET(req: NextRequest) {
       fact: string
     }>(
       `MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity)
-       WHERE a.group_id = $gid
+       WHERE ($project = '' OR a.group_id = $project)
        RETURN elementId(a) AS sourceId, elementId(b) AS targetId,
               type(r) AS label, r.fact AS fact
        LIMIT $limit`,
-      { gid, limit }
+      { project, limit }
     )
     return NextResponse.json({ edges: rows })
   } catch (err) {

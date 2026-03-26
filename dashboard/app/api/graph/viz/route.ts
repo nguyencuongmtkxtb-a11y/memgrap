@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import neo4j from 'neo4j-driver'
-import { runQuery, getGroupId } from '@/lib/neo4j'
+import { runQuery } from '@/lib/neo4j'
 
 /** Returns nodes + edges shaped for react-force-graph-2d. */
 export async function GET(req: NextRequest) {
-  const gid = getGroupId()
+  const project = req.nextUrl.searchParams.get('project') ?? ''
   const parsed = parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10)
   const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 200 : parsed, 500)))
   const type = req.nextUrl.searchParams.get('type') ?? ''
@@ -13,20 +13,20 @@ export async function GET(req: NextRequest) {
     const [nodeRows, edgeRows] = await Promise.all([
       runQuery<{ n: Record<string, unknown>; nodeLabels: string[] }>(
         `MATCH (n:Entity)
-         WHERE n.group_id = $gid
+         WHERE ($project = '' OR n.group_id = $project)
            AND ($type = '' OR $type IN labels(n))
          RETURN n, labels(n) AS nodeLabels
          LIMIT $limit`,
-        { gid, limit, type }
+        { project, limit, type }
       ),
       runQuery<{ sid: string; tid: string; label: string; fact: string }>(
         `MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity)
-         WHERE a.group_id = $gid
+         WHERE ($project = '' OR a.group_id = $project)
            AND ($type = '' OR $type IN labels(a))
          RETURN elementId(a) AS sid, elementId(b) AS tid,
                 type(r) AS label, r.fact AS fact
          LIMIT $limit`,
-        { gid, limit, type }
+        { project, limit, type }
       ),
     ])
 

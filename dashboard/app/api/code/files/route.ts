@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const search = searchParams.get('search') ?? ''
   const lang = searchParams.get('lang') ?? ''
+  const project = searchParams.get('project') ?? ''
 
   try {
     const rows = await runQuery<{
@@ -30,13 +31,14 @@ export async function GET(req: NextRequest) {
       `MATCH (f:CodeFile)
        WHERE ($search = '' OR toLower(f.path) CONTAINS toLower($search))
          AND ($lang = '' OR f.language = $lang)
+         AND ($project = '' OR f.project = $project)
        OPTIONAL MATCH (f)-[:CONTAINS|IMPORTS]->(c)
        WITH f, collect({ props: properties(c), labels: labels(c), eid: elementId(c) }) AS rawChildren
        RETURN f, [ch IN rawChildren WHERE ch.props IS NOT NULL |
          apoc.map.merge(ch.props, { type: ch.labels[0], _id: ch.eid })] AS children
        ORDER BY f.path
        LIMIT 200`,
-      { search, lang }
+      { search, lang, project }
     )
     const files = rows.map((r) => ({
       ...r.f,

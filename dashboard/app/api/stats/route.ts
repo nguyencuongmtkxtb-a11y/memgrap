@@ -1,34 +1,42 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { runQuery, getGroupId } from '@/lib/neo4j'
+import { runQuery } from '@/lib/neo4j'
 
-export async function GET(_req: NextRequest) {
-  const gid = getGroupId()
+export async function GET(req: NextRequest) {
+  const project = req.nextUrl.searchParams.get('project') ?? ''
   try {
     const [entityRes, edgeRes, sessionRes, codeRes, episodeRes] =
       await Promise.all([
         runQuery<{ count: number }>(
-          'MATCH (n:Entity {group_id: $gid}) RETURN count(n) AS count',
-          { gid }
+          `MATCH (n:Entity)
+           WHERE ($project = '' OR n.group_id = $project)
+           RETURN count(n) AS count`,
+          { project }
         ),
         runQuery<{ count: number }>(
-          'MATCH (:Entity {group_id: $gid})-[r:RELATES_TO]->() RETURN count(r) AS count',
-          { gid }
+          `MATCH (a:Entity)-[r:RELATES_TO]->()
+           WHERE ($project = '' OR a.group_id = $project)
+           RETURN count(r) AS count`,
+          { project }
         ),
         runQuery<{ count: number }>(
-          'MATCH (s:SessionEvent) RETURN count(s) AS count',
-          {}
+          `MATCH (s:SessionEvent)
+           WHERE ($project = '' OR s.project = $project)
+           RETURN count(s) AS count`,
+          { project }
         ),
         runQuery<{ count: number }>(
-          'MATCH (f:CodeFile) RETURN count(f) AS count',
-          {}
+          `MATCH (f:CodeFile)
+           WHERE ($project = '' OR f.project = $project)
+           RETURN count(f) AS count`,
+          { project }
         ),
         runQuery<{ episode: Record<string, unknown> }>(
           `MATCH (e:Episodic)
-           WHERE e.group_id = $gid
+           WHERE ($project = '' OR e.group_id = $project)
            RETURN e AS episode
            ORDER BY e.created_at DESC
            LIMIT 10`,
-          { gid }
+          { project }
         ),
       ])
 
@@ -40,7 +48,7 @@ export async function GET(_req: NextRequest) {
       recentEpisodes: episodeRes.map((r) => r.episode),
       health: {
         neo4j: 'ok',
-        groupId: gid,
+        project: project || 'all',
         llmModel: process.env.LLM_MODEL ?? 'gpt-4o-mini',
       },
     })
