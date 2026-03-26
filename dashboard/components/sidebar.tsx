@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation'
 import { GitGraph, Clock, FileCode2, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ConnectionStatus } from '@/components/connection-status'
+import { ProjectSelector } from '@/components/project-selector'
 
 const NAV = [
   { href: '/graph', label: 'Graph', icon: GitGraph },
@@ -22,6 +23,7 @@ export function Sidebar() {
           Memgrap
         </span>
       </div>
+      <ProjectSelector />
       <nav className="flex-1 py-4">
         {NAV.map(({ href, label, icon: Icon }) => (
           <Link
