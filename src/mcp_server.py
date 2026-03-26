@@ -40,7 +40,17 @@ graph_service = GraphService(settings)
 
 
 async def _ensure_init() -> None:
-    """Lazy init: connect to Neo4j + build indices on first tool call."""
+    """Lazy init: connect to Neo4j + build indices on first tool call.
+
+    Validates OpenAI API key before attempting Graphiti init so the user
+    gets a clear error instead of a cryptic downstream failure.
+    """
+    if not settings.openai_api_key:
+        raise RuntimeError(
+            "OPENAI_API_KEY is not set. "
+            "Add it to your .env file or set the environment variable. "
+            "See .env.example for reference."
+        )
     await graph_service.initialize()
 
 
@@ -205,14 +215,15 @@ async def get_status() -> str:
 # --- Lifecycle ---
 
 def _cleanup() -> None:
-    """Close Neo4j connection on process exit."""
+    """Close Neo4j connection on process exit.
+
+    Uses asyncio.run() which is safe in atexit handlers (Python 3.10+).
+    Falls back silently if the event loop is already closed.
+    """
     try:
-        loop = asyncio.get_event_loop()
-        if loop.is_running():
-            loop.create_task(graph_service.close())
-        else:
-            loop.run_until_complete(graph_service.close())
-    except Exception:
+        asyncio.run(graph_service.close())
+    except (RuntimeError, Exception):
+        # Event loop already closed or other shutdown race — safe to ignore
         pass
 
 atexit.register(_cleanup)

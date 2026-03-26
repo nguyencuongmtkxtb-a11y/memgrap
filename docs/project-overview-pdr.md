@@ -51,6 +51,15 @@ Claude Code (stdio) --> MCP Server (FastMCP) --> Graphiti Core --> Neo4j (Docker
 - **API routes:** 8 routes querying Neo4j via bolt protocol
 - **Docker:** Multi-stage build, served on port 3001
 
+## Stability & Portability (P0 Fixes)
+- **Auto-start Neo4j** container on first tool call (Docker compose)
+- **Retry with backoff** (3x) for Neo4j connection during init
+- **OpenAI key validation** — clear error before Graphiti init
+- **Absolute path resolution** everywhere — no CWD dependency
+- **Dynamic hook paths** — no hardcoded `MEMGRAP_DIR` in CJS hooks
+- **Portable `.mcp.json`** — removed hardcoded cwd
+- **One-click setup** — `setup.bat` / `setup.sh` installers
+
 ## Entity Types
 **Memory (8):** CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement
 **Code Index (4):** CodeFile, CodeFunction, CodeClass, CodeImport

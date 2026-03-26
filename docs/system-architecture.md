@@ -6,12 +6,16 @@
 - FastMCP with stdio transport
 - 7 tools exposed to Claude Code
 - Lazy initialization on first tool call
+- **OpenAI key validation** on first tool call — clear error if missing (before Graphiti init)
 - All logging to stderr (stdout = MCP JSON-RPC)
 
 ### Graph Service (`src/graph_service.py`)
 - Wraps Graphiti Core API
 - Methods: add_memory, recall, search_nodes, search_facts, get_episodes, get_status
 - Uses result_formatters for serialization
+- **Auto-start Neo4j:** On `initialize()`, checks if Docker `memgrap-neo4j` container is running; starts it via `docker compose up -d` if not (gracefully skips if Docker unavailable)
+- **Retry with backoff:** Connection retries up to 3x with increasing delay (2s, 4s, 6s) — handles container still starting
+- **Health check guidance:** Failure messages include actionable fix steps (`docker compose ps`)
 
 ### Graphiti Factory (`src/graphiti_factory.py`)
 - Creates configured Graphiti instance
@@ -20,7 +24,7 @@
 
 ### Config (`src/config.py`)
 - pydantic-settings BaseSettings
-- Loads from .env file
+- .env path resolved absolute from `Path(__file__)` — works regardless of CWD
 - Keys: OPENAI_API_KEY, NEO4J_URI/USER/PASSWORD, LLM_MODEL, GROUP_ID
 
 ### Entity Types (`src/entity_types.py`)
@@ -43,6 +47,8 @@
 - `~/.claude/hooks/memgrap-session-{start,end}.cjs` — Node.js hook scripts
 - Auto-capture git context (branch, recent commits, changed files) on session boundaries
 - Write `SessionEvent` nodes to Neo4j directly (zero OpenAI cost)
+- **Path resolution:** Python scripts use `Path(__file__).resolve()` (no sys.path hacks)
+- **Dynamic hooks:** CJS hooks resolve `MEMGRAP_DIR` from env/config — no hardcoded paths
 
 ### Dashboard (`dashboard/`)
 - **Next.js 16** App Router with standalone output for Docker
@@ -57,3 +63,9 @@
 - Dashboard via Docker Compose (port 3001 → 3000 internal)
 - 24 range indices + 4 fulltext indices (auto-created by Graphiti)
 - Persistent Docker volumes for data/logs
+
+## Setup & Portability
+- **One-click installers:** `setup.bat` (Windows) / `setup.sh` (Unix) — installs deps, creates .env, starts Neo4j
+- **`.mcp.json`** no longer contains hardcoded cwd — portable across machines
+- **All path resolution is absolute** via `Path(__file__).resolve()` — no CWD dependency
+- **Neo4j auto-start** eliminates manual `docker compose up` step

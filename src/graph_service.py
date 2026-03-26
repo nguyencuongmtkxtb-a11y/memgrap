@@ -1,8 +1,15 @@
-"""Graphiti wrapper service — init, add memory, search, status."""
+"""Graphiti wrapper service — init, add memory, search, status.
 
+Includes auto-start for Docker Neo4j container and connection retry with backoff.
+"""
+
+import asyncio
 import logging
 import os
+import shutil
+import subprocess
 from datetime import datetime, timezone
+from pathlib import Path
 
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
@@ -19,6 +26,45 @@ from src.result_formatters import format_edge, format_node, format_episode
 
 logger = logging.getLogger(__name__)
 
+# Project root for docker-compose.yml discovery
+_PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
+# Retry config for Neo4j connection
+_MAX_RETRIES = 3
+_RETRY_DELAY_SECONDS = 2
+
+
+def _ensure_neo4j_container() -> None:
+    """Start Neo4j Docker container if not running. Skips if Docker unavailable."""
+    if not shutil.which("docker"):
+        logger.warning("Docker not found on PATH — skipping auto-start.")
+        return
+
+    compose_file = _PROJECT_ROOT / "docker-compose.yml"
+    if not compose_file.exists():
+        logger.warning("docker-compose.yml not found at %s — skipping auto-start.", _PROJECT_ROOT)
+        return
+
+    try:
+        result = subprocess.run(
+            ["docker", "inspect", "--format", "{{.State.Status}}", "memgrap-neo4j"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if result.returncode == 0 and "running" in result.stdout:
+            return  # Already running
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        pass
+
+    logger.info("Neo4j container not running — starting via docker compose...")
+    try:
+        subprocess.run(
+            ["docker", "compose", "up", "-d"],
+            cwd=str(_PROJECT_ROOT), capture_output=True, text=True, timeout=30,
+        )
+        logger.info("Docker compose started. Waiting for Neo4j health...")
+    except (subprocess.TimeoutExpired, FileNotFoundError) as e:
+        logger.warning("Failed to start Neo4j container: %s", e)
+
 
 class GraphService:
     """Wraps Graphiti Core with lazy initialization and developer-memory defaults."""
@@ -29,14 +75,42 @@ class GraphService:
         self._initialized = False
 
     async def initialize(self) -> None:
-        """Connect to Neo4j, create Graphiti instance, build indices. Idempotent."""
+        """Connect to Neo4j, create Graphiti instance, build indices.
+
+        Idempotent. Auto-starts Neo4j container if Docker is available.
+        Retries connection up to 3 times with backoff.
+        """
         if self._initialized:
             return
+
+        # Try to auto-start Neo4j container
+        _ensure_neo4j_container()
+
         os.environ["SEMAPHORE_LIMIT"] = str(self._settings.semaphore_limit)
         self._graphiti = create_graphiti(self._settings)
-        await self._graphiti.build_indices_and_constraints()
-        self._initialized = True
-        logger.info("GraphService initialized — Neo4j connected, indices built.")
+
+        # Retry loop for Neo4j connection (container may still be starting)
+        last_error: Exception | None = None
+        for attempt in range(1, _MAX_RETRIES + 1):
+            try:
+                await self._graphiti.build_indices_and_constraints()
+                self._initialized = True
+                logger.info("GraphService initialized — Neo4j connected, indices built.")
+                return
+            except Exception as e:
+                last_error = e
+                if attempt < _MAX_RETRIES:
+                    logger.warning(
+                        "Neo4j connection attempt %d/%d failed: %s. Retrying in %ds...",
+                        attempt, _MAX_RETRIES, e, _RETRY_DELAY_SECONDS * attempt,
+                    )
+                    await asyncio.sleep(_RETRY_DELAY_SECONDS * attempt)
+
+        raise RuntimeError(
+            f"Failed to connect to Neo4j after {_MAX_RETRIES} attempts. "
+            f"Last error: {last_error}. "
+            f"Check that Neo4j is running: docker compose ps"
+        )
 
     @property
     def graphiti(self) -> Graphiti:
@@ -98,7 +172,7 @@ class GraphService:
         return [format_episode(ep) for ep in episodes]
 
     async def get_status(self) -> dict:
-        """Health check — verify Neo4j connection and return basic stats."""
+        """Health check — verify Neo4j connection and return basic stats with fix guidance."""
         try:
             await self.graphiti.retrieve_episodes(
                 reference_time=datetime.now(timezone.utc),
@@ -113,7 +187,12 @@ class GraphService:
                 "initialized": self._initialized,
             }
         except Exception as e:
-            return {"status": "error", "error": str(e), "initialized": self._initialized}
+            return {
+                "status": "error",
+                "error": str(e),
+                "initialized": self._initialized,
+                "fix": "Run: docker compose up -d (in the Memgrap project directory)",
+            }
 
     async def close(self) -> None:
         """Close Graphiti and Neo4j connection."""

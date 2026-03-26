@@ -11,8 +11,12 @@ Must complete fast (<2s). Uses MERGE for idempotency.
 import json
 import sys
 import os
+from pathlib import Path
 
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+# Ensure project root is on sys.path for `src.*` imports
+_PROJECT_ROOT = str(Path(__file__).resolve().parent.parent.parent)
+if _PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, _PROJECT_ROOT)
 
 from src.session.neo4j_connect import get_neo4j_driver
 
