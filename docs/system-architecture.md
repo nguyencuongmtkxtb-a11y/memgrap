@@ -57,6 +57,16 @@
 - **Components:** sidebar, graph-viewer, node-detail, code-tree, session-list, stat-cards, error-banner
 - **UI:** shadcn/ui v4 + Tailwind CSS v4, dark mode only
 - **Neo4j client:** `lib/neo4j.ts` — singleton driver, session-per-query, Integer handling
+- **`serverExternalPackages: ["neo4j-driver"]`** in `next.config.ts` — prevents standalone build failures from native driver modules
+- **Force-dynamic rendering:** Sessions & Stats pages use `export const dynamic = "force-dynamic"` to avoid static pre-rendering with live Neo4j queries
+- **`toPlain()` DateTime helper** (`lib/neo4j.ts`) — converts Neo4j `DateTime`/`Date` temporal types to plain JS objects before JSON serialization (prevents `[object Object]` in responses)
+- **Deterministic date formatting:** `toISOString()` used instead of `toLocaleString()` to prevent SSR/client hydration mismatch
+- **Neo4j Integer sanitization:** API routes convert `{low, high}` Neo4j Integer objects to plain numbers; clamp negative/NaN `limit` params
+- **Code-tree labels:** `code/files` API includes Neo4j node `labels` array in response for proper icon rendering
+
+### Language Support (`src/code_indexer/`)
+- **15 languages:** Python, JavaScript, TypeScript, TSX, JSX, Go, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
+- tree-sitter grammars loaded dynamically per file extension
 
 ## Infrastructure
 - Neo4j 5.26 via Docker Compose (ports 7474/7687)
