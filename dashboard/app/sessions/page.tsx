@@ -4,6 +4,9 @@ import { NextRequest } from 'next/server'
 import { SessionList } from '@/components/session-list'
 import { ErrorBanner } from '@/components/error-banner'
 
+// Force dynamic rendering — Neo4j is only available at runtime, not build time
+export const dynamic = 'force-dynamic'
+
 export default async function SessionsPage() {
   const req = new NextRequest('http://localhost/api/sessions')
   const res = await GET(req)

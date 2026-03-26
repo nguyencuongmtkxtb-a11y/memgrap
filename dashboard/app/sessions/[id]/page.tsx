@@ -4,6 +4,9 @@ import { NextRequest } from 'next/server'
 import { Badge } from '@/components/ui/badge'
 import { notFound } from 'next/navigation'
 
+// Force dynamic rendering — Neo4j is only available at runtime, not build time
+export const dynamic = 'force-dynamic'
+
 export default async function SessionDetailPage({
   params,
 }: {

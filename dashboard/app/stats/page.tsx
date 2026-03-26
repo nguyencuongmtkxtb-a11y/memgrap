@@ -4,6 +4,9 @@ import { NextRequest } from 'next/server'
 import { StatCards } from '@/components/stat-cards'
 import { ErrorBanner } from '@/components/error-banner'
 
+// Force dynamic rendering — Neo4j is only available at runtime, not build time
+export const dynamic = 'force-dynamic'
+
 export default async function StatsPage() {
   const req = new NextRequest('http://localhost/api/stats')
   const res = await GET(req)
