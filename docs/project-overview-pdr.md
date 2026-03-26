@@ -26,6 +26,14 @@ Claude Code (stdio) --> MCP Server (FastMCP) --> Graphiti Core --> Neo4j (Docker
 - **FastMCP** — MCP server framework (stdio transport)
 - **pydantic-settings** — config from .env
 
+## Phases
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | MCP Server — 7 tools (remember, recall, understand_code, etc.) | ✅ Done |
+| 2 | Code Indexer — tree-sitter AST → Neo4j direct writes (zero OpenAI cost) | ✅ Done |
+| 3 | Session Hooks — auto-capture git context on session start/end | ✅ Done |
+| 4 | Dashboard UI — Next.js 16 + Neo4j graph explorer (4 pages, 8 API routes) | ✅ Done |
+
 ## MCP Tools (7)
 | Tool | Purpose |
 |------|---------|
@@ -37,6 +45,13 @@ Claude Code (stdio) --> MCP Server (FastMCP) --> Graphiti Core --> Neo4j (Docker
 | `index_codebase` | Parse + index source files (tree-sitter → Neo4j) |
 | `get_status` | Health check |
 
+## Dashboard (Phase 4)
+- **Stack:** Next.js 16 + shadcn/ui v4 + Tailwind CSS v4 (dark mode)
+- **Pages:** Graph Explorer (force-graph-2d), Sessions, Code Index, Stats
+- **API routes:** 8 routes querying Neo4j via bolt protocol
+- **Docker:** Multi-stage build, served on port 3001
+
 ## Entity Types
 **Memory (8):** CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement
 **Code Index (4):** CodeFile, CodeFunction, CodeClass, CodeImport
+**Sessions:** SessionEvent (auto-captured by hooks)

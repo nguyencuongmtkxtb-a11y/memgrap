@@ -38,7 +38,22 @@
 4. Graphiti calls OpenAI for entity extraction + embeddings
 5. Results stored in / retrieved from Neo4j
 
+### Session Hooks (`src/session/`)
+- `session_start.py` / `session_end.py` — Python scripts invoked by Claude Code hooks
+- `~/.claude/hooks/memgrap-session-{start,end}.cjs` — Node.js hook scripts
+- Auto-capture git context (branch, recent commits, changed files) on session boundaries
+- Write `SessionEvent` nodes to Neo4j directly (zero OpenAI cost)
+
+### Dashboard (`dashboard/`)
+- **Next.js 16** App Router with standalone output for Docker
+- **Pages:** Graph Explorer (react-force-graph-2d), Sessions, Code Index, Stats
+- **API routes (8):** viz, nodes, nodes/[id], edges, sessions, sessions/[id], code/files, stats
+- **Components:** sidebar, graph-viewer, node-detail, code-tree, session-list, stat-cards, error-banner
+- **UI:** shadcn/ui v4 + Tailwind CSS v4, dark mode only
+- **Neo4j client:** `lib/neo4j.ts` — singleton driver, session-per-query, Integer handling
+
 ## Infrastructure
 - Neo4j 5.26 via Docker Compose (ports 7474/7687)
+- Dashboard via Docker Compose (port 3001 → 3000 internal)
 - 24 range indices + 4 fulltext indices (auto-created by Graphiti)
 - Persistent Docker volumes for data/logs
