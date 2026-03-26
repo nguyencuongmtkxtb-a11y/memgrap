@@ -9,6 +9,7 @@ import atexit
 import json
 import logging
 import sys
+import urllib.request
 
 from mcp.server.fastmcp import FastMCP
 
@@ -59,6 +60,19 @@ def _fmt(data: object) -> str:
     return json.dumps(data, indent=2, ensure_ascii=False, default=str)
 
 
+def _notify_dashboard(event: str, project: str | None = None) -> None:
+    """Fire-and-forget notification to dashboard SSE."""
+    try:
+        url = f"{settings.dashboard_url}/api/notify"
+        payload = json.dumps({"event": event, "project": project}).encode()
+        req = urllib.request.Request(
+            url, data=payload, headers={"Content-Type": "application/json"},
+        )
+        urllib.request.urlopen(req, timeout=2)
+    except Exception:
+        pass  # Dashboard may not be running
+
+
 # --- MCP Tools ---
 
 
@@ -81,6 +95,7 @@ async def remember(
     await _ensure_init()
     try:
         result = await graph_service.add_memory(content=content, source=source, name=name)
+        _notify_dashboard("entity:created")
         return (
             f"Stored. Extracted {result['nodes_count']} entities, "
             f"{result['edges_count']} facts.\n"
@@ -208,6 +223,7 @@ async def index_codebase(
             # Incremental mode — only index new/changed files
             from src.indexer.incremental_indexer import run_incremental_index
             stats = await run_incremental_index(path, extensions=ext_set, project=project_name)
+            _notify_dashboard("code:indexed", project_name)
             return _fmt({"status": "indexed_incremental", "path": path, **stats})
 
         # Full mode — re-index everything
@@ -217,6 +233,7 @@ async def index_codebase(
         symbols = parse_directory(path, extensions=ext_set)
         indexer = CodeIndexer(graph_service.graphiti.driver, project=project_name)
         stats = await indexer.index_symbols(symbols)
+        _notify_dashboard("code:indexed", project_name)
         return _fmt({"status": "indexed_full", "path": path, "symbols": len(symbols), **stats})
     except Exception as e:
         logger.error("index_codebase failed: %s", e)

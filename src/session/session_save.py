@@ -59,6 +59,24 @@ def main():
             summary=data.get("summary", ""),
             transcript_path=data.get("transcript_path", ""),
         )
+
+        # Notify dashboard SSE about new session
+        try:
+            import urllib.request
+            from src.config import get_settings
+            dashboard_url = get_settings().dashboard_url
+            url = f"{dashboard_url}/api/notify"
+            payload = json.dumps({
+                "event": "session:created",
+                "project": data["project"],
+            }).encode()
+            req = urllib.request.Request(
+                url, data=payload,
+                headers={"Content-Type": "application/json"},
+            )
+            urllib.request.urlopen(req, timeout=2)
+        except Exception:
+            pass  # Dashboard may not be running
     finally:
         driver.close()
 

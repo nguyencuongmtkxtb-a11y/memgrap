@@ -38,6 +38,9 @@ class Settings(BaseSettings):
     group_id: str = "default"
     semaphore_limit: int = 5
 
+    # Dashboard notification URL (for SSE push)
+    dashboard_url: str = "http://localhost:3001"
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
