@@ -40,6 +40,31 @@ Comprehensive unit test suite (56 tests, ~1.4s) + GitHub Actions CI pipeline.
 - GitHub Actions CI: Python (ruff + pytest unit) + Dashboard (eslint + jest) — two parallel jobs
 - pytest-asyncio auto mode, `get_settings.cache_clear()` fixture for test isolation
 
+## Phase 6 — Error Boundaries
+**Status:** Complete
+
+React ErrorBoundary class component wrapping all pages with retry button. ConnectionStatus indicator in sidebar footer polling lightweight `/api/health` endpoint every 30s (green/red/yellow dot).
+
+## Phase 7 — Multi-project Support
+**Status:** Complete
+
+Global `ProjectContext` (React Context + localStorage) with project selector dropdown in sidebar. All 6 API routes accept `?project=` param, mapping to `group_id` for Entity/Episodic nodes and `project` for Code/Session nodes. Python indexer writes `project` property to CodeFile nodes. `/api/projects` endpoint returns distinct project list.
+
+## Phase 8 — Search & Filter
+**Status:** Complete
+
+Global fulltext search bar with 400ms debounce across 4 Neo4j indexes (entity_name, session_search, code_file_search, code_function_search). DateRangePicker component on Graph, Sessions, Code pages with `?from=&to=` query params. Fulltext indexes auto-created by Python indexer on startup.
+
+## Phase 9 — Dashboard Realtime (SSE)
+**Status:** Complete
+
+Server-Sent Events via ReadableStream API route (`/api/events`). In-memory EventBus singleton for pub/sub. Python MCP server sends fire-and-forget HTTP POST to `/api/notify` after remember/index/session operations. `useEventSource` React hook with auto-reconnect. Configurable `DASHBOARD_URL` in settings.
+
+## Phase 10 — Export/Import
+**Status:** Complete
+
+JSON export (`GET /api/export/json?project=`) with downloadable file. JSON import (`POST /api/import/json`) with additive MERGE and label whitelist (Cypher injection prevention). Export page in dashboard with CLI backup instructions. Neo4j dump/restore CLI scripts (`scripts/backup.sh`, `scripts/restore.sh` + Windows variants).
+
 ## Stability & Portability (Cross-cutting)
 **Status:** Complete
 

@@ -63,6 +63,7 @@ def main():
         # Notify dashboard SSE about new session
         try:
             import urllib.request
+
             from src.config import get_settings
             dashboard_url = get_settings().dashboard_url
             url = f"{dashboard_url}/api/notify"

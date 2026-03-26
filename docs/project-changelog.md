@@ -1,5 +1,40 @@
 # Project Changelog
 
+## 2026-03-26 — Phases 6-10 Dashboard Hardening & Features
+
+### Phase 6 — Error Boundaries
+- **feat(dashboard): ErrorBoundary class component** — wraps all pages with icon + error message + retry button
+- **feat(dashboard): ConnectionStatus indicator** — sidebar footer polls `/api/health` every 30s, green/red/yellow dot
+- **feat(dashboard): `/api/health` endpoint** — lightweight Neo4j ping (`RETURN 1`)
+
+### Phase 7 — Multi-project Support
+- **feat(dashboard): ProjectContext provider** — React Context + localStorage (`memgrap-project` key)
+- **feat(dashboard): project selector dropdown** — sidebar, fetches `/api/projects`
+- **feat(dashboard): `/api/projects` endpoint** — UNION of `n.project` and `n.group_id` for distinct list
+- **feat(dashboard): project filter on all API routes** — `?project=` param maps to `group_id` (Entity) or `project` (Code/Session)
+- **feat(indexer): project property on CodeFile** — `neo4j_ingestor.py` sets `project` on all MERGE queries
+- **feat(dashboard): sessions/stats client component conversion** — rewrote from server to client components with useProject/ErrorBoundary
+
+### Phase 8 — Search & Filter
+- **feat(dashboard): global search bar** — 400ms debounce, dropdown results, click-to-navigate
+- **feat(dashboard): `/api/search` endpoint** — fulltext search across 4 Neo4j indexes with Lucene escape
+- **feat(dashboard): DateRangePicker component** — from/to date inputs on Graph, Sessions, Code pages
+- **feat(indexer): fulltext index creation** — `ensure_fulltext_indexes()` creates session_search, code_file_search, code_function_search
+
+### Phase 9 — Dashboard Realtime (SSE)
+- **feat(dashboard): SSE endpoint `/api/events`** — ReadableStream with cancel() cleanup, 30s keepalive
+- **feat(dashboard): EventBus singleton** — in-memory pub/sub for notify→SSE bridge
+- **feat(dashboard): `/api/notify` endpoint** — receives POST from MCP server, broadcasts to SSE
+- **feat(dashboard): `useEventSource` hook** — auto-reconnect with 5s backoff
+- **feat(mcp): dashboard notification** — fire-and-forget POST after remember/index/session ops
+- **feat(config): DASHBOARD_URL setting** — configurable via env (default: `http://localhost:3001`)
+
+### Phase 10 — Export/Import
+- **feat(dashboard): `/api/export/json` endpoint** — streams entities, facts, sessions, codeFiles as downloadable JSON
+- **feat(dashboard): `/api/import/json` endpoint** — additive MERGE with ALLOWED_LABELS whitelist (Cypher injection prevention)
+- **feat(dashboard): export page** — CLI backup instructions, JSON download, file upload
+- **feat: backup/restore CLI scripts** — `scripts/backup.sh`, `scripts/restore.sh` + Windows variants
+
 ## 2026-03-26 — Phase 5 Testing & CI/CD
 
 ### Unit Tests
