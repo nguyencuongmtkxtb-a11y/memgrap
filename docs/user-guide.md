@@ -231,7 +231,16 @@ Ví dụ:
 
 **Mục đích:** Quét và đánh chỉ mục một thư mục code vào đồ thị tri thức. Memgrap sẽ phân tích cú pháp (parse) để trích xuất hàm, class, import.
 
-**Cách dùng:**
+**Chế độ hoạt động:**
+
+| Chế độ | Tham số | Mô tả |
+|--------|---------|-------|
+| **Incremental** (mặc định) | `full=False` | Chỉ index file **mới** hoặc **đã thay đổi** (so sánh mtime với `indexed_at` trong Neo4j) |
+| **Full re-index** | `full=True` | Xóa toàn bộ chỉ mục cũ và index lại từ đầu |
+
+**Tự động index khi bắt đầu phiên:** Mỗi khi bạn mở Claude Code, Memgrap tự động chạy incremental index **ở chế độ nền** — bạn không cần thao tác gì. Chỉ file mới hoặc đã sửa đổi kể từ lần index trước mới được xử lý.
+
+**Cách dùng thủ công:**
 
 ```
 Đánh chỉ mục thư mục src của dự án hiện tại vào Memgrap
@@ -239,6 +248,10 @@ Ví dụ:
 
 ```
 Index thư mục D:/myproject/src với các file .py và .ts
+```
+
+```
+Index lại toàn bộ thư mục src (full=True)
 ```
 
 **Thông tin được trích xuất:**

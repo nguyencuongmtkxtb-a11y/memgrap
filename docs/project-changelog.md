@@ -2,6 +2,11 @@
 
 ## 2026-03-26 — Dashboard Stability & Codebase Hardening
 
+### Incremental Codebase Indexing
+- **feat: incremental codebase indexing on session start** — `src/indexer/incremental_indexer.py` compares file mtime vs Neo4j `indexed_at`; only new/modified files are re-indexed
+- **feat: auto-index on session start** — SessionStart hook runs incremental index in background (no user action needed)
+- **feat: `full` parameter for `index_codebase`** — `full=False` (default) for incremental, `full=True` for complete re-index
+
 ### Dashboard Bug Fixes (Phase 4)
 - **fix(dashboard): sanitize Neo4j integers in code files API** — Convert `{low, high}` Integer objects to plain numbers in `code/files` route
 - **fix(dashboard): include Neo4j node labels in code files API** — Code-tree now receives `labels` array for proper icon rendering

@@ -64,6 +64,11 @@
 - **Neo4j Integer sanitization:** API routes convert `{low, high}` Neo4j Integer objects to plain numbers; clamp negative/NaN `limit` params
 - **Code-tree labels:** `code/files` API includes Neo4j node `labels` array in response for proper icon rendering
 
+### Incremental Indexer (`src/indexer/incremental_indexer.py`)
+- Compares file `mtime` against Neo4j `indexed_at` timestamp — only indexes new or modified files
+- SessionStart hook auto-runs incremental index in background on every session start
+- `index_codebase` MCP tool accepts `full` parameter: `False` (default) for incremental, `True` for full re-index
+
 ### Language Support (`src/code_indexer/`)
 - **15 languages:** Python, JavaScript, TypeScript, TSX, JSX, Go, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
 - tree-sitter grammars loaded dynamically per file extension
