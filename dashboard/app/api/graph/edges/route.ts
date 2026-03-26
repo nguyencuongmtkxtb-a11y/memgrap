@@ -4,9 +4,8 @@ import { runQuery, getGroupId } from '@/lib/neo4j'
 
 export async function GET(req: NextRequest) {
   const gid = getGroupId()
-  const limit = neo4j.int(
-    Math.min(parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10), 500)
-  )
+  const parsed = parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10)
+  const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 200 : parsed, 500)))
   try {
     const rows = await runQuery<{
       sourceId: string

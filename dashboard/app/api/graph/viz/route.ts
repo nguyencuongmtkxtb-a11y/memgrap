@@ -5,9 +5,8 @@ import { runQuery, getGroupId } from '@/lib/neo4j'
 /** Returns nodes + edges shaped for react-force-graph-2d. */
 export async function GET(req: NextRequest) {
   const gid = getGroupId()
-  const limit = neo4j.int(
-    Math.min(parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10), 500)
-  )
+  const parsed = parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10)
+  const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 200 : parsed, 500)))
   const type = req.nextUrl.searchParams.get('type') ?? ''
 
   try {

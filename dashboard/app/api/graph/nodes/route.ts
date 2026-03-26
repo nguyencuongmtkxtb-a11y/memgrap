@@ -7,9 +7,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl
   const type = searchParams.get('type') ?? ''
   const search = searchParams.get('search') ?? ''
-  const limit = neo4j.int(
-    Math.min(parseInt(searchParams.get('limit') ?? '100', 10), 500)
-  )
+  const parsed = parseInt(searchParams.get('limit') ?? '100', 10)
+  const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 100 : parsed, 500)))
 
   try {
     // Entity types are labels (Concept, Tool, etc.), not entity_type property
