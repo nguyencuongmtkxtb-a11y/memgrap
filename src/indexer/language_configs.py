@@ -125,6 +125,23 @@ PHP_QUERY = """
 (namespace_use_declaration) @import.stmt
 """
 
+KOTLIN_QUERY = """
+(function_declaration (simple_identifier) @func.name) @func.def
+(class_declaration (type_identifier) @class.name) @class.def
+(object_declaration (type_identifier) @class.name) @class.def
+(interface_declaration (type_identifier) @class.name) @class.def
+(import_header) @import.stmt
+"""
+
+SWIFT_QUERY = """
+(function_declaration name: (simple_identifier) @func.name) @func.def
+(class_declaration name: (type_identifier) @class.name) @class.def
+(struct_declaration name: (type_identifier) @class.name) @class.def
+(protocol_declaration name: (type_identifier) @class.name) @class.def
+(enum_declaration name: (type_identifier) @class.name) @class.def
+(import_declaration) @import.stmt
+"""
+
 
 # ---------------------------------------------------------------------------
 # Registry builder — each language loaded via optional import
@@ -185,6 +202,8 @@ def _build_registry() -> dict[str, LangConfig]:
     _try_register(registry, "tree_sitter_c_sharp", CSHARP_QUERY, [".cs"])
     _try_register(registry, "tree_sitter_ruby", RUBY_QUERY, [".rb"])
     _try_register(registry, "tree_sitter_php", PHP_QUERY, [".php"], lang_attr="language_php")
+    _try_register(registry, "tree_sitter_kotlin", KOTLIN_QUERY, [".kt", ".kts"])
+    _try_register(registry, "tree_sitter_swift", SWIFT_QUERY, [".swift"])
 
     return registry
 

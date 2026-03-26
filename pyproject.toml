@@ -20,6 +20,8 @@ dependencies = [
     "tree-sitter-c-sharp>=0.23.0",
     "tree-sitter-ruby>=0.23.0",
     "tree-sitter-php>=0.23.0",
+    "tree-sitter-kotlin>=0.23.0",
+    "tree-sitter-swift>=0.0.1",
 ]
 
 [project.optional-dependencies]
