@@ -15,8 +15,9 @@ logger = logging.getLogger(__name__)
 class CodeIndexer:
     """Writes code symbols to Neo4j as CodeFile/Function/Class/Import nodes."""
 
-    def __init__(self, driver: Neo4jDriver) -> None:
+    def __init__(self, driver: Neo4jDriver, project: str | None = None) -> None:
         self._driver = driver
+        self._project = project
 
     async def clear_file(self, file_path: str) -> int:
         """Remove all code index nodes for a file. Returns count deleted."""
@@ -55,8 +56,8 @@ class CodeIndexer:
             # Upsert CodeFile node
             await self._driver.execute_query(
                 "MERGE (f:CodeFile {path: $path}) "
-                "SET f.language = $lang, f.indexed_at = $now",
-                path=file_path, lang=lang, now=now,
+                "SET f.language = $lang, f.indexed_at = $now, f.project = $project",
+                path=file_path, lang=lang, now=now, project=self._project or "",
             )
             stats["files"] += 1
 
@@ -93,9 +94,9 @@ class CodeIndexer:
             "UNWIND $items AS item "
             "MATCH (f:CodeFile {path: $fp}) "
             "MERGE (fn:CodeFunction {name: item.name, file_path: item.fp}) "
-            "SET fn.line = item.line, fn.parent_scope = item.parent, fn.indexed_at = $now "
+            "SET fn.line = item.line, fn.parent_scope = item.parent, fn.indexed_at = $now, fn.project = $project "
             "MERGE (f)-[:CONTAINS]->(fn)",
-            items=data, fp=file_path, now=now,
+            items=data, fp=file_path, now=now, project=self._project or "",
         )
 
     async def _upsert_classes(self, file_path: str, classes: list, now: str) -> None:
@@ -108,9 +109,9 @@ class CodeIndexer:
             "UNWIND $items AS item "
             "MATCH (f:CodeFile {path: $fp}) "
             "MERGE (cls:CodeClass {name: item.name, file_path: item.fp}) "
-            "SET cls.line = item.line, cls.parent_scope = item.parent, cls.indexed_at = $now "
+            "SET cls.line = item.line, cls.parent_scope = item.parent, cls.indexed_at = $now, cls.project = $project "
             "MERGE (f)-[:CONTAINS]->(cls)",
-            items=data, fp=file_path, now=now,
+            items=data, fp=file_path, now=now, project=self._project or "",
         )
 
     async def _upsert_imports(self, file_path: str, imports: list, now: str) -> None:
@@ -123,7 +124,7 @@ class CodeIndexer:
             "UNWIND $items AS item "
             "MATCH (f:CodeFile {path: $fp}) "
             "MERGE (imp:CodeImport {name: item.name, file_path: item.fp}) "
-            "SET imp.line = item.line, imp.indexed_at = $now "
+            "SET imp.line = item.line, imp.indexed_at = $now, imp.project = $project "
             "MERGE (f)-[:IMPORTS]->(imp)",
-            items=data, fp=file_path, now=now,
+            items=data, fp=file_path, now=now, project=self._project or "",
         )

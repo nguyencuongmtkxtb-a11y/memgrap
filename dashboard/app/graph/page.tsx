@@ -8,6 +8,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { useDebounce } from '@/lib/use-debounce'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { useProject } from '@/contexts/project-context'
 
 // MUST use dynamic import with ssr:false — react-force-graph-2d uses browser APIs
 const GraphViewer = dynamic(
@@ -53,6 +54,7 @@ interface Connection {
 }
 
 export default function GraphPage() {
+  const { project } = useProject()
   const [graphData, setGraphData] = useState<{
     nodes: VizNode[]
     edges: VizEdge[]
@@ -73,6 +75,7 @@ export default function GraphPage() {
     setError(false)
     try {
       const params = new URLSearchParams({ limit: '200' })
+      if (project) params.set('project', project)
       const res = await fetch(`/api/graph/viz?${params}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
@@ -94,7 +97,7 @@ export default function GraphPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedTypes, debouncedSearch])
+  }, [selectedTypes, debouncedSearch, project])
 
   useEffect(() => {
     fetchGraph()

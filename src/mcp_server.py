@@ -201,10 +201,13 @@ async def index_codebase(
         if extensions:
             ext_set = {e.strip() if e.startswith(".") else f".{e.strip()}" for e in extensions.split(",")}
 
+        from pathlib import Path as _Path
+        project_name = _Path(path).name
+
         if not full:
             # Incremental mode — only index new/changed files
             from src.indexer.incremental_indexer import run_incremental_index
-            stats = await run_incremental_index(path, extensions=ext_set)
+            stats = await run_incremental_index(path, extensions=ext_set, project=project_name)
             return _fmt({"status": "indexed_incremental", "path": path, **stats})
 
         # Full mode — re-index everything
@@ -212,7 +215,7 @@ async def index_codebase(
         from src.indexer.neo4j_ingestor import CodeIndexer
 
         symbols = parse_directory(path, extensions=ext_set)
-        indexer = CodeIndexer(graph_service.graphiti.driver)
+        indexer = CodeIndexer(graph_service.graphiti.driver, project=project_name)
         stats = await indexer.index_symbols(symbols)
         return _fmt({"status": "indexed_full", "path": path, "symbols": len(symbols), **stats})
     except Exception as e:

@@ -257,7 +257,7 @@ async def test_index_codebase_extension_parsing(mock_gs, mock_init):
     """Extensions string '.py,.js' should be parsed into a set with dots."""
     captured_ext = {}
 
-    async def _capture_ext(path, extensions=None):
+    async def _capture_ext(path, extensions=None, project=None):
         captured_ext["ext"] = extensions
         return {"files_parsed": 0, "files_skipped": 0, "symbols_indexed": 0}
 

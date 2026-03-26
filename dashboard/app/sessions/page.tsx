@@ -1,29 +1,57 @@
-// Server Component — calls route handler directly (fix C2)
-import { GET } from '@/app/api/sessions/route'
-import { NextRequest } from 'next/server'
+'use client'
+
+import { useEffect, useState, useCallback } from 'react'
 import { SessionList } from '@/components/session-list'
 import { ErrorBanner } from '@/components/error-banner'
+import { ErrorBoundary } from '@/components/error-boundary'
+import { useProject } from '@/contexts/project-context'
 
-// Force dynamic rendering — Neo4j is only available at runtime, not build time
-export const dynamic = 'force-dynamic'
+interface SessionRow {
+  session_id: string
+  branch: string
+  ended_at: string
+  commitCount: number
+  filesCount: number
+  summary?: string
+  project?: string
+}
 
-export default async function SessionsPage() {
-  const req = new NextRequest('http://localhost/api/sessions')
-  const res = await GET(req)
-  const data = await res.json()
+export default function SessionsPage() {
+  const { project } = useProject()
+  const [sessions, setSessions] = useState<SessionRow[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
-  if (res.status !== 200 || data.error) {
-    return (
-      <div className="p-8">
-        <ErrorBanner />
-      </div>
-    )
-  }
+  const fetchSessions = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const params = new URLSearchParams()
+      if (project) params.set('project', project)
+      const res = await fetch(`/api/sessions?${params}`)
+      if (!res.ok) throw new Error()
+      const data = await res.json()
+      setSessions(data.sessions)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [project])
+
+  useEffect(() => { fetchSessions() }, [fetchSessions])
 
   return (
-    <div className="p-8 max-w-4xl">
-      <h1 className="text-xl font-semibold mb-6">Sessions</h1>
-      <SessionList sessions={data.sessions} />
-    </div>
+    <ErrorBoundary>
+      <div className="p-8 max-w-4xl">
+        <h1 className="text-xl font-semibold mb-6">Sessions</h1>
+        {error && <ErrorBanner />}
+        {loading ? (
+          <p className="text-sm text-muted-foreground">Loading...</p>
+        ) : (
+          <SessionList sessions={sessions} />
+        )}
+      </div>
+    </ErrorBoundary>
   )
 }

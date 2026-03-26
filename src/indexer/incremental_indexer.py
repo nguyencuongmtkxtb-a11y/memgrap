@@ -78,6 +78,7 @@ def _needs_reindex(mtime: float, indexed_at_iso: str | None) -> bool:
 async def run_incremental_index(
     path: str,
     extensions: set[str] | None = None,
+    project: str | None = None,
 ) -> dict:
     """Run incremental index: only parse+ingest new/changed files.
 
@@ -136,7 +137,7 @@ async def run_incremental_index(
         }
 
     # Parse and ingest only changed files
-    indexer = CodeIndexer(driver)
+    indexer = CodeIndexer(driver, project=project)
     all_symbols = []
     actually_new = 0
     actually_updated = 0

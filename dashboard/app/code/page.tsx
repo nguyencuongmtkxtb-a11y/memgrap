@@ -5,8 +5,10 @@ import { CodeTree } from '@/components/code-tree'
 import { Input } from '@/components/ui/input'
 import { useDebounce } from '@/lib/use-debounce'
 import { ErrorBoundary } from '@/components/error-boundary'
+import { useProject } from '@/contexts/project-context'
 
 export default function CodePage() {
+  const { project } = useProject()
   const [files, setFiles] = useState<unknown[]>([])
   const [search, setSearch] = useState('')
   const [lang, setLang] = useState('')
@@ -20,6 +22,7 @@ export default function CodePage() {
     setError(false)
     try {
       const params = new URLSearchParams()
+      if (project) params.set('project', project)
       if (debouncedSearch) params.set('search', debouncedSearch)
       if (lang) params.set('lang', lang)
       // Client component — relative URL works fine in browser
@@ -32,7 +35,7 @@ export default function CodePage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, lang])
+  }, [debouncedSearch, lang, project])
 
   useEffect(() => {
     fetchFiles()
