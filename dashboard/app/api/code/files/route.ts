@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
       { search, lang, project, from, to }
     )
     const files = rows.map((r) => ({
+      _id: (r as Record<string, unknown>)._eid ?? r.f._id ?? Math.random().toString(36),
       ...r.f,
       children: (r.children.filter(Boolean) as unknown[]).map(sanitize),
     }))
