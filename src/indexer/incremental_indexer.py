@@ -143,7 +143,12 @@ async def run_incremental_index(
     actually_updated = 0
     new_set = set(new_files)
     for fp in files_to_index:
-        symbols = parse_file(fp)
+        try:
+            symbols = parse_file(fp)
+        except Exception as e:
+            logger.warning("Parse error in %s: %s — skipping", fp, e)
+            skipped += 1
+            continue
         if not symbols:
             # File has no extractable symbols (e.g. empty __init__.py) — skip
             skipped += 1
@@ -190,12 +195,19 @@ def main() -> None:
         default=".py,.js,.ts,.tsx,.jsx",
         help="Comma-separated file extensions (default: .py,.js,.ts,.tsx,.jsx)",
     )
+    parser.add_argument(
+        "--project",
+        default=None,
+        help="Project name for tagging indexed nodes (default: directory basename)",
+    )
     args = parser.parse_args()
 
     ext_set = {
         e.strip() if e.startswith(".") else f".{e.strip()}"
         for e in args.extensions.split(",")
     }
+
+    project = args.project or Path(args.path).name
 
     logging.basicConfig(
         level=logging.INFO,
@@ -204,7 +216,7 @@ def main() -> None:
     )
 
     try:
-        stats = asyncio.run(run_incremental_index(args.path, ext_set))
+        stats = asyncio.run(run_incremental_index(args.path, ext_set, project=project))
     except Exception as e:
         print(f"[memgrap-index] Error: {e}", file=sys.stderr)
         sys.exit(0)  # Exit cleanly — don't crash session start

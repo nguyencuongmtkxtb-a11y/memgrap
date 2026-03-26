@@ -1,6 +1,14 @@
 # Project Changelog
 
-## 2026-03-27 — Setup Scripts: Global MCP Config
+## 2026-03-27 — Indexer Fixes & Global MCP Config
+
+### Indexer Fixes
+- **fix(indexer): separate TS_QUERY from JS_QUERY** — tree-sitter-typescript uses `type_identifier` for class names, not `identifier` like JS. Shared query caused `Impossible pattern` crash on all TS/TSX files
+- **fix(indexer): try/except around parse_file** — single file parse errors no longer crash the entire incremental indexer
+- **fix(indexer): --project CLI arg** — incremental indexer now accepts `--project` flag, defaults to directory basename. Session hook passes project name
+- **fix(hook): pass project to indexer** — `memgrap-session-start.cjs` now passes `--project` so CodeFile nodes are tagged per-project
+
+### Setup Scripts: Global MCP Config
 
 - **fix(setup): global MCP config** — `setup.bat` and `setup.sh` now write `~/.claude/mcp.json` (global) instead of only project-level `.mcp.json`, so graphiti-memory MCP server works in **all projects**
 - **fix(setup): pass OPENAI_API_KEY via env** — MCP config includes `env.OPENAI_API_KEY` (read from `.env`) to avoid runtime failures from missing API key

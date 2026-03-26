@@ -56,8 +56,14 @@ JS_QUERY = """
 (export_statement declaration: (class_declaration name: (identifier) @class.name)) @export.class
 """
 
-# TS uses same grammar shape as JS — queries are compatible
-TS_QUERY = JS_QUERY
+# TS grammar uses type_identifier for class names (not identifier like JS)
+TS_QUERY = """
+(function_declaration name: (identifier) @func.name) @func.def
+(class_declaration name: (type_identifier) @class.name) @class.def
+(import_statement) @import.stmt
+(export_statement declaration: (function_declaration name: (identifier) @func.name)) @export.func
+(export_statement declaration: (class_declaration name: (type_identifier) @class.name)) @export.class
+"""
 
 GO_QUERY = """
 (function_declaration name: (identifier) @func.name) @func.def
