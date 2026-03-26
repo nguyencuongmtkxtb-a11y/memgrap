@@ -247,7 +247,9 @@ Index thư mục D:/myproject/src với các file .py và .ts
 - **CodeClass** — Tên class, phương thức
 - **CodeImport** — Các thư viện được import
 
-**Ngôn ngữ hỗ trợ:** Python, JavaScript, TypeScript, JSX, TSX (mặc định: `.py, .js, .ts, .tsx, .jsx`).
+**Ngôn ngữ hỗ trợ (15 ngôn ngữ, 21 extensions):**
+- **Mặc định:** Python (`.py`), JavaScript (`.js`, `.jsx`), TypeScript (`.ts`, `.tsx`)
+- **Mở rộng:** Go (`.go`), Rust (`.rs`), Java (`.java`), C (`.c`, `.h`), C++ (`.cpp`, `.cc`, `.cxx`, `.hpp`, `.hxx`), C# (`.cs`), Ruby (`.rb`), PHP (`.php`), Kotlin (`.kt`, `.kts`), Swift (`.swift`)
 
 **Lưu ý:** Tính năng này ghi trực tiếp vào Neo4j mà không cần gọi OpenAI, nên **không tốn chi phí API**.
 
