@@ -81,7 +81,11 @@ async def remember(
     await _ensure_init()
     try:
         result = await graph_service.add_memory(content=content, source=source, name=name)
-        return f"Stored. Extracted {result['nodes_count']} entities, {result['edges_count']} facts.\nEntities: {result['nodes']}\nFacts: {result['facts']}"
+        return (
+            f"Stored. Extracted {result['nodes_count']} entities, "
+            f"{result['edges_count']} facts.\n"
+            f"Entities: {result['nodes']}\nFacts: {result['facts']}"
+        )
     except Exception as e:
         logger.error("remember failed: %s", e)
         return f"Error storing memory: {e}"

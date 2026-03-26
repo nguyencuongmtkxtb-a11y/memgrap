@@ -10,7 +10,6 @@ Must complete fast (<2s). Uses MERGE for idempotency.
 
 import json
 import sys
-import os
 from pathlib import Path
 
 # Ensure project root is on sys.path for `src.*` imports

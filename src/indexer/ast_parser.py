@@ -11,9 +11,9 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-from tree_sitter import QueryCursor, Node
+from tree_sitter import Node, QueryCursor
 
-from src.indexer.language_configs import LANG_REGISTRY, LangConfig
+from src.indexer.language_configs import LANG_REGISTRY
 
 # --- Data model ---
 

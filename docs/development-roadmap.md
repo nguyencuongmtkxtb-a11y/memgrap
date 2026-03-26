@@ -29,6 +29,17 @@ Next.js 16 dashboard with 4 pages (Graph Explorer, Sessions, Code Index, Stats) 
 - `serverExternalPackages` for neo4j-driver standalone build
 - Input validation (clamp negative/NaN limit params)
 
+## Phase 5 — Testing & CI/CD
+**Status:** Complete
+
+Comprehensive unit test suite (56 tests, ~1.4s) + GitHub Actions CI pipeline.
+
+- 7 unit test files covering: result_formatters, config, graph_service, mcp_server tools, ast_parser, neo4j_ingestor, incremental_indexer
+- Integration tests reorganized into `tests/integration/` with `@pytest.mark.integration`
+- ruff linter configured (E/F/I rules, line-length 120)
+- GitHub Actions CI: Python (ruff + pytest unit) + Dashboard (eslint + jest) — two parallel jobs
+- pytest-asyncio auto mode, `get_settings.cache_clear()` fixture for test isolation
+
 ## Stability & Portability (Cross-cutting)
 **Status:** Complete
 

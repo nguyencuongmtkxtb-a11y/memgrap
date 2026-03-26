@@ -28,6 +28,7 @@ dependencies = [
 dev = [
     "pytest>=8.0.0",
     "pytest-asyncio>=0.23.0",
+    "ruff>=0.4.0",
 ]
 
 [build-system]
@@ -39,3 +40,19 @@ packages = ["src"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
+asyncio_mode = "auto"
+markers = ["integration: requires running Neo4j instance"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# Tree-sitter query strings have long lines
+"src/indexer/language_configs.py" = ["E501"]
+# Session scripts need sys.path manipulation before imports
+"src/session/session_recall.py" = ["E402"]
+"src/session/session_save.py" = ["E402"]

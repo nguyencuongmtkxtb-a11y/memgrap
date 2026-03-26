@@ -13,16 +13,16 @@ from pathlib import Path
 
 from graphiti_core import Graphiti
 from graphiti_core.nodes import EpisodeType
+from graphiti_core.search.search_config import SearchResults
 from graphiti_core.search.search_config_recipes import (
     EDGE_HYBRID_SEARCH_RRF,
     NODE_HYBRID_SEARCH_RRF,
 )
-from graphiti_core.search.search_config import SearchResults
 
 from src.config import Settings
 from src.entity_types import ENTITY_TYPES
 from src.graphiti_factory import create_graphiti
-from src.result_formatters import format_edge, format_node, format_episode
+from src.result_formatters import format_edge, format_episode, format_node
 
 logger = logging.getLogger(__name__)
 

@@ -1,5 +1,9 @@
 """Tests for session Neo4j connection helper."""
+import pytest
+
 from src.session.neo4j_connect import get_neo4j_driver
+
+pytestmark = pytest.mark.integration
 
 
 def test_get_neo4j_driver_returns_driver():

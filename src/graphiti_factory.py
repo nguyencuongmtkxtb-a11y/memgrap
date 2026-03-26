@@ -1,9 +1,9 @@
 """Factory to create configured Graphiti instance with OpenAI LLM + embedder."""
 
 from graphiti_core import Graphiti
-from graphiti_core.llm_client.openai_client import OpenAIClient
-from graphiti_core.llm_client.config import LLMConfig
 from graphiti_core.embedder.openai import OpenAIEmbedder, OpenAIEmbedderConfig
+from graphiti_core.llm_client.config import LLMConfig
+from graphiti_core.llm_client.openai_client import OpenAIClient
 
 from src.config import Settings
 

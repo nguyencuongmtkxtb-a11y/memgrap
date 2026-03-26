@@ -1,5 +1,28 @@
 # Project Changelog
 
+## 2026-03-26 — Phase 5 Testing & CI/CD
+
+### Unit Tests
+- **test: result_formatters** — 7 tests for format_edge, format_node, format_episode (pure functions)
+- **test: config** — 3 tests for Settings defaults, env override, lru_cache isolation
+- **test: graph_service** — 10 tests for init, retry, container check, memory ops, status
+- **test: mcp_server tools** — 15 tests for all 7 MCP tools (success/error/empty paths)
+- **test: ast_parser** — 9 tests for Python/JS/TS parsing, directory walk, ignore dirs
+- **test: neo4j_ingestor** — 6 tests for Cypher upsert queries, batch operations
+- **test: incremental_indexer** — 7 tests for file collection, reindex logic, incremental flow
+
+### Test Infrastructure
+- **chore: reorganize integration tests** — moved to `tests/integration/` with `@pytest.mark.integration`
+- **chore: conftest.py** — `get_settings.cache_clear()` autouse fixture, marker registration
+- **chore: test fixtures** — sample.py/js/ts for AST parser tests
+- **chore: pytest-asyncio auto mode** — no per-test `@pytest.mark.asyncio` needed
+
+### Linting
+- **chore: ruff linter** — configured E/F/I rules, line-length 120, per-file ignores for tree-sitter queries and session scripts
+
+### CI/CD
+- **ci: GitHub Actions** — `.github/workflows/ci.yml` with 2 parallel jobs (Python lint+test, Dashboard lint+test)
+
 ## 2026-03-26 — Dashboard Stability & Codebase Hardening
 
 ### Incremental Codebase Indexing

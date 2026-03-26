@@ -6,7 +6,6 @@ entities are classified into these categories automatically.
 
 from pydantic import BaseModel, Field
 
-
 # --- Entity Types (nodes in the knowledge graph) ---
 
 class CodePattern(BaseModel):

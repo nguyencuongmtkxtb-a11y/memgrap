@@ -15,7 +15,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.indexer.ast_parser import DEFAULT_IGNORE_DIRS, parse_file
-from src.indexer.language_configs import LANG_REGISTRY
 
 logger = logging.getLogger(__name__)
 

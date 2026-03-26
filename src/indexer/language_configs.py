@@ -178,8 +178,8 @@ def _build_registry() -> dict[str, LangConfig]:
     registry: dict[str, LangConfig] = {}
 
     # Required languages (always installed with memgrap)
-    import tree_sitter_python as ts_python
     import tree_sitter_javascript as ts_javascript
+    import tree_sitter_python as ts_python
     import tree_sitter_typescript as ts_typescript
 
     py_lang = Language(ts_python.language())
