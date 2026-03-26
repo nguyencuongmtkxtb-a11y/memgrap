@@ -1,5 +1,11 @@
 # Project Changelog
 
+## 2026-03-27 — Setup Scripts: Global MCP Config
+
+- **fix(setup): global MCP config** — `setup.bat` and `setup.sh` now write `~/.claude/mcp.json` (global) instead of only project-level `.mcp.json`, so graphiti-memory MCP server works in **all projects**
+- **fix(setup): pass OPENAI_API_KEY via env** — MCP config includes `env.OPENAI_API_KEY` (read from `.env`) to avoid runtime failures from missing API key
+- **fix(setup): keep project .mcp.json** — backward compat for users opening MEMGRAP directory directly
+
 ## 2026-03-26 — Phases 6-10 Dashboard Hardening & Features
 
 ### Phase 6 — Error Boundaries

@@ -71,19 +71,43 @@ echo "[5/6] Configuring MCP for Claude Code..."
 # Write project path to ~/.memgrap for hooks to discover
 echo "$MEMGRAP_DIR" > "$HOME/.memgrap"
 
-# Generate .mcp.json with correct path
-cat > "$MEMGRAP_DIR/.mcp.json" <<MCPEOF
+# Read OPENAI_API_KEY from .env
+OPENAI_KEY_VALUE=""
+if [ -f "$MEMGRAP_DIR/.env" ]; then
+    OPENAI_KEY_VALUE=$(grep '^OPENAI_API_KEY=' "$MEMGRAP_DIR/.env" | cut -d'=' -f2-)
+fi
+
+# Write global MCP config (~/.claude/mcp.json) so it works in ALL projects
+MCP_DIR="$HOME/.claude"
+mkdir -p "$MCP_DIR"
+cat > "$MCP_DIR/mcp.json" <<MCPEOF
 {
   "mcpServers": {
     "graphiti-memory": {
       "command": "$PYTHON",
       "args": ["-m", "src.mcp_server"],
-      "cwd": "$MEMGRAP_DIR"
+      "cwd": "$MEMGRAP_DIR",
+      "env": {
+        "OPENAI_API_KEY": "$OPENAI_KEY_VALUE"
+      }
     }
   }
 }
 MCPEOF
-echo "       MCP config written."
+echo "       Global MCP config written: $MCP_DIR/mcp.json"
+
+# Also keep project-level .mcp.json for backward compat
+cat > "$MEMGRAP_DIR/.mcp.json" <<MCPEOF
+{
+  "mcpServers": {
+    "graphiti-memory": {
+      "command": "$PYTHON",
+      "args": ["-m", "src.mcp_server"]
+    }
+  }
+}
+MCPEOF
+echo "       Project MCP config written."
 echo
 
 echo "[6/6] Verifying setup..."

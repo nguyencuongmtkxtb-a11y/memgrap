@@ -82,17 +82,43 @@ echo [5/6] Configuring MCP for Claude Code...
 :: Write project path to ~/.memgrap for hooks to discover
 echo %MEMGRAP_DIR%> "%USERPROFILE%\.memgrap"
 
-:: Generate .mcp.json with correct path
+:: Read OPENAI_API_KEY from .env
+set "OPENAI_KEY_VALUE="
+if exist "%MEMGRAP_DIR%\.env" (
+    for /f "tokens=1,* delims==" %%A in ('findstr /B "OPENAI_API_KEY" "%MEMGRAP_DIR%\.env"') do set "OPENAI_KEY_VALUE=%%B"
+)
+
+:: Write global MCP config (~/.claude/mcp.json) so it works in ALL projects
+set "MCP_DIR=%USERPROFILE%\.claude"
+if not exist "%MCP_DIR%" mkdir "%MCP_DIR%"
+set "MCP_FILE=%MCP_DIR%\mcp.json"
+set "ESCAPED_DIR=%MEMGRAP_DIR:\=/%"
+
+:: Build JSON with env block
+> "%MCP_FILE%" echo {
+>> "%MCP_FILE%" echo   "mcpServers": {
+>> "%MCP_FILE%" echo     "graphiti-memory": {
+>> "%MCP_FILE%" echo       "command": "python",
+>> "%MCP_FILE%" echo       "args": ["-m", "src.mcp_server"],
+>> "%MCP_FILE%" echo       "cwd": "%ESCAPED_DIR%",
+>> "%MCP_FILE%" echo       "env": {
+>> "%MCP_FILE%" echo         "OPENAI_API_KEY": "!OPENAI_KEY_VALUE!"
+>> "%MCP_FILE%" echo       }
+>> "%MCP_FILE%" echo     }
+>> "%MCP_FILE%" echo   }
+>> "%MCP_FILE%" echo }
+echo       Global MCP config written: %MCP_FILE%
+
+:: Also keep project-level .mcp.json for backward compat
 echo {> "%MEMGRAP_DIR%\.mcp.json"
 echo   "mcpServers": {>> "%MEMGRAP_DIR%\.mcp.json"
 echo     "graphiti-memory": {>> "%MEMGRAP_DIR%\.mcp.json"
 echo       "command": "python",>> "%MEMGRAP_DIR%\.mcp.json"
-echo       "args": ["-m", "src.mcp_server"],>> "%MEMGRAP_DIR%\.mcp.json"
-echo       "cwd": "%MEMGRAP_DIR:\=\\%">> "%MEMGRAP_DIR%\.mcp.json"
+echo       "args": ["-m", "src.mcp_server"]>> "%MEMGRAP_DIR%\.mcp.json"
 echo     }>> "%MEMGRAP_DIR%\.mcp.json"
 echo   }>> "%MEMGRAP_DIR%\.mcp.json"
 echo }>> "%MEMGRAP_DIR%\.mcp.json"
-echo       MCP config written.
+echo       Project MCP config written.
 echo.
 
 echo [6/6] Verifying setup...
