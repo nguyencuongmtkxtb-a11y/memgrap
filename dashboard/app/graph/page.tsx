@@ -10,6 +10,7 @@ import { useDebounce } from '@/lib/use-debounce'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useProject } from '@/contexts/project-context'
 import { DateRangePicker } from '@/components/date-range-picker'
+import { useEventSource } from '@/hooks/use-event-source'
 
 // MUST use dynamic import with ssr:false — react-force-graph-2d uses browser APIs
 const GraphViewer = dynamic(
@@ -107,6 +108,8 @@ export default function GraphPage() {
   useEffect(() => {
     fetchGraph()
   }, [fetchGraph])
+
+  useEventSource(() => { fetchGraph() })
 
   const handleNodeClick = useCallback(async (node: VizNode) => {
     setSelectedNode(node)

@@ -6,6 +6,7 @@ import { ErrorBanner } from '@/components/error-banner'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useProject } from '@/contexts/project-context'
 import { DateRangePicker } from '@/components/date-range-picker'
+import { useEventSource } from '@/hooks/use-event-source'
 
 interface SessionRow {
   session_id: string
@@ -45,6 +46,8 @@ export default function SessionsPage() {
   }, [project, dateFrom, dateTo])
 
   useEffect(() => { fetchSessions() }, [fetchSessions])
+
+  useEventSource(() => { fetchSessions() })
 
   return (
     <ErrorBoundary>

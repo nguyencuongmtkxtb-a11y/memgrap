@@ -5,6 +5,7 @@ import { StatCards } from '@/components/stat-cards'
 import { ErrorBanner } from '@/components/error-banner'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useProject } from '@/contexts/project-context'
+import { useEventSource } from '@/hooks/use-event-source'
 
 interface StatsData {
   entityCount: number
@@ -16,7 +17,7 @@ interface StatsData {
     content?: string
     created_at?: string
   }>
-  health: { neo4j: string; groupId: string; llmModel: string }
+  health: { neo4j: string; project: string; llmModel: string }
 }
 
 export default function StatsPage() {
@@ -42,6 +43,8 @@ export default function StatsPage() {
   }, [project])
 
   useEffect(() => { fetchStats() }, [fetchStats])
+
+  useEventSource(() => { fetchStats() })
 
   return (
     <ErrorBoundary>

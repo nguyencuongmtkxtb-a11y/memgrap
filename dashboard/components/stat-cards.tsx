@@ -12,7 +12,7 @@ interface StatsData {
     content?: string
     created_at?: string
   }>
-  health: { neo4j: string; groupId: string; llmModel: string }
+  health: { neo4j: string; project: string; llmModel: string }
 }
 
 const CARDS = [
@@ -59,9 +59,9 @@ export function StatCards({ stats }: { stats: StatsData }) {
             </Badge>
           </span>
           <span>
-            Group:{' '}
+            Project:{' '}
             <code className="text-xs bg-muted px-1 rounded">
-              {stats.health.groupId}
+              {stats.health.project}
             </code>
           </span>
           <span>
