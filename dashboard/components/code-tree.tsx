@@ -97,7 +97,7 @@ export function CodeTree({ files }: { files: CodeFileNode[] }) {
                         <span className="ml-auto shrink-0">:{child.line}</span>
                       )}
                       <span className="text-muted-foreground/50">
-                        {child.type.replace('Code', '')}
+                        {(child.type ?? '').replace('Code', '')}
                       </span>
                     </div>
                   )

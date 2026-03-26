@@ -16,7 +16,9 @@ export async function GET(req: NextRequest) {
        WHERE ($search = '' OR toLower(f.path) CONTAINS toLower($search))
          AND ($lang = '' OR f.language = $lang)
        OPTIONAL MATCH (f)-[:CONTAINS|IMPORTS]->(c)
-       RETURN f, collect(c) AS children
+       WITH f, collect({ props: properties(c), labels: labels(c), eid: elementId(c) }) AS rawChildren
+       RETURN f, [ch IN rawChildren WHERE ch.props IS NOT NULL |
+         apoc.map.merge(ch.props, { type: ch.labels[0], _id: ch.eid })] AS children
        ORDER BY f.path
        LIMIT 200`,
       { search, lang }
