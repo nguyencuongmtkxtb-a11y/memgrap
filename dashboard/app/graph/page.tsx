@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { useDebounce } from '@/lib/use-debounce'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 // MUST use dynamic import with ssr:false — react-force-graph-2d uses browser APIs
 const GraphViewer = dynamic(
@@ -123,6 +124,7 @@ export default function GraphPage() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="flex h-screen overflow-hidden">
       {/* Left panel */}
       <div className="w-56 flex-none border-r border-border p-4 overflow-y-auto">
@@ -189,5 +191,6 @@ export default function GraphPage() {
         />
       )}
     </div>
+    </ErrorBoundary>
   )
 }

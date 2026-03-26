@@ -4,6 +4,7 @@ import { useEffect, useState, useCallback } from 'react'
 import { CodeTree } from '@/components/code-tree'
 import { Input } from '@/components/ui/input'
 import { useDebounce } from '@/lib/use-debounce'
+import { ErrorBoundary } from '@/components/error-boundary'
 
 export default function CodePage() {
   const [files, setFiles] = useState<unknown[]>([])
@@ -38,6 +39,7 @@ export default function CodePage() {
   }, [fetchFiles])
 
   return (
+    <ErrorBoundary>
     <div className="p-8 max-w-4xl">
       <h1 className="text-xl font-semibold mb-6">Code Index</h1>
       {error && (
@@ -67,5 +69,6 @@ export default function CodePage() {
         />
       )}
     </div>
+    </ErrorBoundary>
   )
 }

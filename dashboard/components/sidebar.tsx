@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { GitGraph, Clock, FileCode2, BarChart3 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { ConnectionStatus } from '@/components/connection-status'
 
 const NAV = [
   { href: '/graph', label: 'Graph', icon: GitGraph },
@@ -38,6 +39,9 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
+      <div className="border-t border-border">
+        <ConnectionStatus />
+      </div>
     </aside>
   )
 }
