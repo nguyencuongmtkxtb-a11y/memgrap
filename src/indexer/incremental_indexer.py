@@ -18,8 +18,8 @@ from src.indexer.ast_parser import DEFAULT_IGNORE_DIRS, parse_file
 
 logger = logging.getLogger(__name__)
 
-# Default extensions to index
-DEFAULT_EXTENSIONS = {".py", ".js", ".ts", ".tsx", ".jsx"}
+# Default extensions to index — matches all languages in LANG_REGISTRY
+DEFAULT_EXTENSIONS = {".py", ".js", ".ts", ".tsx", ".jsx", ".go", ".rs", ".java", ".cs", ".rb", ".php", ".kt", ".kts", ".swift", ".c", ".h", ".cpp", ".cc", ".cxx", ".hpp", ".hxx"}
 
 
 def _collect_files(
@@ -192,8 +192,8 @@ def main() -> None:
     )
     parser.add_argument(
         "--extensions",
-        default=".py,.js,.ts,.tsx,.jsx",
-        help="Comma-separated file extensions (default: .py,.js,.ts,.tsx,.jsx)",
+        default=",".join(sorted(DEFAULT_EXTENSIONS)),
+        help="Comma-separated file extensions (default: all supported languages)",
     )
     parser.add_argument(
         "--project",
