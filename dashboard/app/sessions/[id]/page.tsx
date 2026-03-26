@@ -38,9 +38,9 @@ export default async function SessionDetailPage({
         <Badge variant="outline">{s.branch}</Badge>
         {s.project && <Badge variant="secondary">{s.project}</Badge>}
         <span className="text-muted-foreground">
-          {s.started_at ? new Date(s.started_at).toLocaleString() : ''}
+          {s.started_at ? new Date(s.started_at).toISOString().replace('T', ' ').slice(0, 19) : ''}
           {' → '}
-          {s.ended_at ? new Date(s.ended_at).toLocaleString() : ''}
+          {s.ended_at ? new Date(s.ended_at).toISOString().replace('T', ' ').slice(0, 19) : ''}
         </span>
       </div>
 

@@ -93,7 +93,7 @@ export function StatCards({ stats }: { stats: StatsData }) {
               </p>
               {ep.created_at && (
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {new Date(ep.created_at).toLocaleString()}
+                  {ep.created_at.replace('T', ' ').slice(0, 19)}
                 </p>
               )}
             </div>

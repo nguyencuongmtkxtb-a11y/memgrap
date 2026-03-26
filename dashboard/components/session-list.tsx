@@ -58,7 +58,7 @@ export function SessionList({ sessions }: { sessions: SessionRow[] }) {
             </span>
             <span className="flex items-center gap-1">
               <Clock className="h-3.5 w-3.5" />
-              {new Date(s.ended_at).toLocaleDateString()}
+              {s.ended_at ? new Date(s.ended_at).toISOString().slice(0, 10) : '—'}
             </span>
           </div>
         </Link>
