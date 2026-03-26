@@ -8,6 +8,8 @@ export async function GET(req: NextRequest) {
   const parsed = parseInt(req.nextUrl.searchParams.get('limit') ?? '200', 10)
   const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 200 : parsed, 500)))
   const type = req.nextUrl.searchParams.get('type') ?? ''
+  const from = req.nextUrl.searchParams.get('from') ?? ''
+  const to = req.nextUrl.searchParams.get('to') ?? ''
 
   try {
     const [nodeRows, edgeRows] = await Promise.all([
@@ -15,18 +17,22 @@ export async function GET(req: NextRequest) {
         `MATCH (n:Entity)
          WHERE ($project = '' OR n.group_id = $project)
            AND ($type = '' OR $type IN labels(n))
+           AND ($from = '' OR n.created_at >= $from)
+           AND ($to = '' OR n.created_at <= $to)
          RETURN n, labels(n) AS nodeLabels
          LIMIT $limit`,
-        { project, limit, type }
+        { project, limit, type, from, to }
       ),
       runQuery<{ sid: string; tid: string; label: string; fact: string }>(
         `MATCH (a:Entity)-[r:RELATES_TO]->(b:Entity)
          WHERE ($project = '' OR a.group_id = $project)
            AND ($type = '' OR $type IN labels(a))
+           AND ($from = '' OR a.created_at >= $from)
+           AND ($to = '' OR a.created_at <= $to)
          RETURN elementId(a) AS sid, elementId(b) AS tid,
                 type(r) AS label, r.fact AS fact
          LIMIT $limit`,
-        { project, limit, type }
+        { project, limit, type, from, to }
       ),
     ])
 

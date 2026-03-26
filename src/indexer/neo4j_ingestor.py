@@ -29,6 +29,22 @@ class CodeIndexer:
         )
         return result.records[0]["cnt"] if result.records else 0
 
+    async def ensure_fulltext_indexes(self) -> None:
+        """Create fulltext indexes for search if they don't exist."""
+        indexes = [
+            "CREATE FULLTEXT INDEX session_search IF NOT EXISTS "
+            "FOR (s:SessionEvent) ON EACH [s.branch, s.summary]",
+            "CREATE FULLTEXT INDEX code_file_search IF NOT EXISTS "
+            "FOR (c:CodeFile) ON EACH [c.path]",
+            "CREATE FULLTEXT INDEX code_function_search IF NOT EXISTS "
+            "FOR (f:CodeFunction) ON EACH [f.name]",
+        ]
+        for idx in indexes:
+            try:
+                await self._driver.execute_query(idx)
+            except Exception as e:
+                logger.warning("Index creation skipped: %s", e)
+
     async def index_symbols(self, symbols: list) -> dict:
         """Ingest a list of CodeSymbol objects into Neo4j.
 
@@ -37,6 +53,8 @@ class CodeIndexer:
         """
         if not symbols:
             return {"files": 0, "functions": 0, "classes": 0, "imports": 0}
+
+        await self.ensure_fulltext_indexes()
 
         # Group by file
         by_file: dict[str, list] = {}

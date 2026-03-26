@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge'
 import { useDebounce } from '@/lib/use-debounce'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useProject } from '@/contexts/project-context'
+import { DateRangePicker } from '@/components/date-range-picker'
 
 // MUST use dynamic import with ssr:false — react-force-graph-2d uses browser APIs
 const GraphViewer = dynamic(
@@ -67,6 +68,8 @@ export default function GraphPage() {
   const [connections, setConnections] = useState<Connection[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const debouncedSearch = useDebounce(search, 400)
 
@@ -76,6 +79,8 @@ export default function GraphPage() {
     try {
       const params = new URLSearchParams({ limit: '200' })
       if (project) params.set('project', project)
+      if (dateFrom) params.set('from', dateFrom)
+      if (dateTo) params.set('to', dateTo)
       const res = await fetch(`/api/graph/viz?${params}`)
       if (!res.ok) throw new Error()
       const data = await res.json()
@@ -97,7 +102,7 @@ export default function GraphPage() {
     } finally {
       setLoading(false)
     }
-  }, [selectedTypes, debouncedSearch, project])
+  }, [selectedTypes, debouncedSearch, project, dateFrom, dateTo])
 
   useEffect(() => {
     fetchGraph()
@@ -154,6 +159,16 @@ export default function GraphPage() {
               <span className="truncate">{type}</span>
             </label>
           ))}
+        </div>
+        <div className="mt-4 pt-4 border-t border-border">
+          <h3 className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+            Date Range
+          </h3>
+          <DateRangePicker
+            from={dateFrom}
+            to={dateTo}
+            onChange={(f, t) => { setDateFrom(f); setDateTo(t) }}
+          />
         </div>
         <div className="mt-4 pt-4 border-t border-border">
           <Badge variant="outline" className="text-xs">

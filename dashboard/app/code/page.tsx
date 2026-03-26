@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input'
 import { useDebounce } from '@/lib/use-debounce'
 import { ErrorBoundary } from '@/components/error-boundary'
 import { useProject } from '@/contexts/project-context'
+import { DateRangePicker } from '@/components/date-range-picker'
 
 export default function CodePage() {
   const { project } = useProject()
@@ -14,6 +15,8 @@ export default function CodePage() {
   const [lang, setLang] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo, setDateTo] = useState('')
 
   const debouncedSearch = useDebounce(search, 300)
 
@@ -25,6 +28,8 @@ export default function CodePage() {
       if (project) params.set('project', project)
       if (debouncedSearch) params.set('search', debouncedSearch)
       if (lang) params.set('lang', lang)
+      if (dateFrom) params.set('from', dateFrom)
+      if (dateTo) params.set('to', dateTo)
       // Client component — relative URL works fine in browser
       const res = await fetch(`/api/code/files?${params}`)
       if (!res.ok) throw new Error()
@@ -35,7 +40,7 @@ export default function CodePage() {
     } finally {
       setLoading(false)
     }
-  }, [debouncedSearch, lang, project])
+  }, [debouncedSearch, lang, project, dateFrom, dateTo])
 
   useEffect(() => {
     fetchFiles()
@@ -44,7 +49,14 @@ export default function CodePage() {
   return (
     <ErrorBoundary>
     <div className="p-8 max-w-4xl">
-      <h1 className="text-xl font-semibold mb-6">Code Index</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-semibold">Code Index</h1>
+        <DateRangePicker
+          from={dateFrom}
+          to={dateTo}
+          onChange={(f, t) => { setDateFrom(f); setDateTo(t) }}
+        />
+      </div>
       {error && (
         <div className="rounded-md bg-destructive/10 border border-destructive/20 px-4 py-3 text-sm text-destructive mb-4">
           Neo4j unreachable.

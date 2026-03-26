@@ -3,14 +3,18 @@ import { runQuery } from '@/lib/neo4j'
 
 export async function GET(req: NextRequest) {
   const project = req.nextUrl.searchParams.get('project') ?? ''
+  const from = req.nextUrl.searchParams.get('from') ?? ''
+  const to = req.nextUrl.searchParams.get('to') ?? ''
   try {
     const rows = await runQuery<{ s: Record<string, unknown> }>(
       `MATCH (s:SessionEvent)
        WHERE ($project = '' OR s.project = $project)
+         AND ($from = '' OR s.started_at >= $from)
+         AND ($to = '' OR s.started_at <= $to)
        RETURN s
        ORDER BY s.ended_at DESC
        LIMIT 100`,
-      { project }
+      { project, from, to }
     )
     const sessions = rows.map((r) => ({
       ...r.s,

@@ -7,6 +7,8 @@ export async function GET(req: NextRequest) {
   const project = searchParams.get('project') ?? ''
   const type = searchParams.get('type') ?? ''
   const search = searchParams.get('search') ?? ''
+  const from = searchParams.get('from') ?? ''
+  const to = searchParams.get('to') ?? ''
   const parsed = parseInt(searchParams.get('limit') ?? '100', 10)
   const limit = neo4j.int(Math.max(0, Math.min(isNaN(parsed) ? 100 : parsed, 500)))
 
@@ -17,10 +19,12 @@ export async function GET(req: NextRequest) {
        WHERE ($project = '' OR n.group_id = $project)
          AND ($type = '' OR $type IN labels(n))
          AND ($search = '' OR toLower(n.name) CONTAINS toLower($search))
+         AND ($from = '' OR n.created_at >= $from)
+         AND ($to = '' OR n.created_at <= $to)
        RETURN n
        ORDER BY n.created_at DESC
        LIMIT $limit`,
-      { project, type, search, limit }
+      { project, type, search, limit, from, to }
     )
     return NextResponse.json({ nodes: rows.map((r) => r.n) })
   } catch (err) {
