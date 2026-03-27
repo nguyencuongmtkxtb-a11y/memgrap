@@ -285,6 +285,50 @@ async def get_status() -> str:
     return _fmt(status)
 
 
+@mcp.tool()
+async def consolidate_memory(
+    max_age_days: int = 30,
+    dry_run: bool = True,
+    project: str = "",
+) -> str:
+    """Consolidate and clean up the knowledge graph memory.
+
+    Reviews all stored memories, removes stale/duplicate data,
+    merges related insights, and updates temporal validity.
+    Zero OpenAI cost — uses direct Cypher queries only.
+
+    Args:
+        max_age_days: Remove episodes older than this (default: 30)
+        dry_run: If true, only report what would be cleaned (default: true)
+        project: Optional project filter
+    """
+    await _ensure_init()
+    try:
+        gid = project or _current_project or None
+        stats = await graph_service.consolidate_memory(
+            group_id=gid,
+            max_age_days=max_age_days,
+            dry_run=dry_run,
+        )
+        if not dry_run:
+            _notify_dashboard("memory:consolidated", gid)
+
+        mode = "DRY RUN" if dry_run else "EXECUTED"
+        lines = [
+            f"Memory consolidation ({mode}):",
+            f"  Duplicate entities merged: {stats['duplicates_merged']}",
+            f"  Stale facts (superseded): {stats['stale_facts_found']}",
+            f"  Stale facts removed: {stats['stale_facts_removed']}",
+            f"  Orphan entities (no relations): {stats['orphans_found']}",
+            f"  Old episodes pruned (>{max_age_days}d): {stats['episodes_pruned']}",
+            f"  Duplicate facts consolidated: {stats['duplicate_facts_removed']}",
+        ]
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("consolidate_memory failed: %s", e)
+        return f"Error consolidating memory: {e}"
+
+
 # --- Code Graph Tools (zero OpenAI cost — direct Neo4j queries) ---
 
 

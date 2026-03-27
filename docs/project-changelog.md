@@ -1,5 +1,19 @@
 # Project Changelog
 
+## 2026-03-27 — Memory consolidation tool
+
+### Feature
+- **feat(mcp): `consolidate_memory` tool for knowledge graph cleanup** — Reviews all stored memories, identifies duplicate entities, superseded facts, orphan entities, old episodes, and duplicate facts. Performs cleanup via direct Cypher queries (zero OpenAI cost). Safe by default with `dry_run=True`.
+- **feat(graph_service): `consolidate_memory()` method** — 5-step cleanup pipeline: (1) merge duplicate entities by name+group, (2) find/remove superseded facts, (3) detect orphan entities, (4) prune old episodes by configurable age, (5) deduplicate facts per entity pair+relation type.
+
+### Parameters
+- `dry_run` (default: `True`): Only report stats, no modifications
+- `max_age_days` (default: `30`): Episode age threshold for pruning
+- `project`: Optional project filter (auto-detected from CWD if empty)
+
+### Tests
+- 10 new unit tests: dry run empty/with-issues, execute mode, project forwarding, max_age forwarding, error handling, auto-project detection, default group_id
+
 ## 2026-03-27 — Auto-detect project from CWD
 
 ### Feature

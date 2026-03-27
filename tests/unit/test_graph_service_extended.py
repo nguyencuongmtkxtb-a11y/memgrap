@@ -240,3 +240,155 @@ async def test_add_memory_auto_episode_name():
 
     assert result["episode"].startswith("memory-")
     assert len(result["episode"]) > len("memory-")
+
+
+# ---------------------------------------------------------------------------
+# consolidate_memory — dry run
+# ---------------------------------------------------------------------------
+
+
+def _mock_driver_for_consolidate(
+    dup_records=None,
+    stale_records=None,
+    orphan_records=None,
+    ep_records=None,
+    dup_fact_records=None,
+):
+    """Build a mock driver whose execute_query returns canned records."""
+    driver = AsyncMock()
+
+    # Default empty results
+    if dup_records is None:
+        dup_records = []
+    if stale_records is None:
+        stale_records = [{"stale_count": 0}]
+    if orphan_records is None:
+        orphan_records = [{"orphan_count": 0}]
+    if ep_records is None:
+        ep_records = [{"old_count": 0}]
+    if dup_fact_records is None:
+        dup_fact_records = [{"dup_fact_groups": 0, "removable": 0}]
+
+    # execute_query is called with different Cypher queries.
+    # We return results in call order:
+    # 1. dup entities, 2. stale facts, 3. orphans, 4. episodes, 5. dup facts
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            (dup_records, None, None),
+            (stale_records, None, None),
+            (orphan_records, None, None),
+            (ep_records, None, None),
+            (dup_fact_records, None, None),
+        ]
+    )
+    return driver
+
+
+async def test_consolidate_memory_dry_run_empty():
+    """consolidate_memory dry_run with no issues returns zero stats."""
+    svc = GraphService(_make_settings(group_id="test-proj"))
+    svc._initialized = True
+
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = _mock_driver_for_consolidate()
+    svc._graphiti = mock_graphiti
+
+    stats = await svc.consolidate_memory(group_id="test-proj", dry_run=True)
+
+    assert stats["dry_run"] is True
+    assert stats["group_id"] == "test-proj"
+    assert stats["duplicates_merged"] == 0
+    assert stats["stale_facts_found"] == 0
+    assert stats["orphans_found"] == 0
+    assert stats["episodes_pruned"] == 0
+    assert stats["duplicate_facts_removed"] == 0
+
+
+async def test_consolidate_memory_dry_run_with_issues():
+    """consolidate_memory dry_run detects issues but does not delete."""
+    svc = GraphService(_make_settings(group_id="proj"))
+    svc._initialized = True
+
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = _mock_driver_for_consolidate(
+        dup_records=[
+            {"name": "EntityA", "cnt": 3, "uuids": ["u1", "u2", "u3"]},
+        ],
+        stale_records=[{"stale_count": 5}],
+        orphan_records=[{"orphan_count": 2}],
+        ep_records=[{"old_count": 10}],
+        dup_fact_records=[{"dup_fact_groups": 3, "removable": 4}],
+    )
+    svc._graphiti = mock_graphiti
+
+    stats = await svc.consolidate_memory(group_id="proj", dry_run=True)
+
+    assert stats["duplicates_merged"] == 2  # cnt(3) - 1 = 2
+    assert stats["stale_facts_found"] == 5
+    assert stats["stale_facts_removed"] == 0  # dry run: no removal
+    assert stats["orphans_found"] == 2
+    assert stats["episodes_pruned"] == 10
+    assert stats["duplicate_facts_removed"] == 4
+
+    # Verify only 5 read queries were executed (no write queries in dry run)
+    assert mock_graphiti.driver.execute_query.call_count == 5
+
+
+async def test_consolidate_memory_execute_mode():
+    """consolidate_memory dry_run=False calls write queries."""
+    svc = GraphService(_make_settings(group_id="proj"))
+    svc._initialized = True
+
+    mock_graphiti = MagicMock()
+    driver = AsyncMock()
+
+    # Side effects for all queries (read + write):
+    # 1. dup entities (read) — has dups
+    # 2. dup entities (write/merge)
+    # 3. stale facts (read)
+    # 4. stale facts (write/delete)
+    # 5. orphans (read)
+    # 6. episodes (read) — has old
+    # 7. episodes (write/delete)
+    # 8. dup facts (read) — has dups
+    # 9. dup facts (write/dedup)
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            ([{"name": "X", "cnt": 2, "uuids": ["a", "b"]}], None, None),  # 1
+            ([{"merged": 1}], None, None),                                   # 2
+            ([{"stale_count": 3}], None, None),                              # 3
+            ([{"removed": 3}], None, None),                                  # 4
+            ([{"orphan_count": 1}], None, None),                             # 5
+            ([{"old_count": 5}], None, None),                                # 6
+            ([{"pruned": 5}], None, None),                                   # 7
+            ([{"dup_fact_groups": 2, "removable": 3}], None, None),          # 8
+            ([{"removed": 3}], None, None),                                  # 9
+        ]
+    )
+    mock_graphiti.driver = driver
+    svc._graphiti = mock_graphiti
+
+    stats = await svc.consolidate_memory(group_id="proj", dry_run=False)
+
+    assert stats["dry_run"] is False
+    assert stats["duplicates_merged"] == 1
+    assert stats["stale_facts_removed"] == 3
+    assert stats["orphans_found"] == 1
+    assert stats["episodes_pruned"] == 5
+    assert stats["duplicate_facts_removed"] == 3
+    # 9 total queries: 5 reads + 4 writes
+    assert driver.execute_query.call_count == 9
+
+
+async def test_consolidate_memory_uses_default_gid():
+    """consolidate_memory uses settings group_id when no override."""
+    svc = GraphService(_make_settings(group_id="default-proj"))
+    svc._initialized = True
+
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = _mock_driver_for_consolidate()
+    svc._graphiti = mock_graphiti
+
+    stats = await svc.consolidate_memory(dry_run=True)
+
+    assert stats["group_id"] == "default-proj"

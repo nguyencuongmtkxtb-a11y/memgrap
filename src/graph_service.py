@@ -198,6 +198,159 @@ class GraphService:
                 "fix": "Run: docker compose up -d (in the Memgrap project directory)",
             }
 
+    async def consolidate_memory(
+        self,
+        group_id: str | None = None,
+        max_age_days: int = 30,
+        dry_run: bool = True,
+    ) -> dict:
+        """Review and clean up knowledge graph: dedup, prune stale, find orphans.
+
+        All operations use direct Cypher queries — zero OpenAI/LLM cost.
+
+        Args:
+            group_id: Scope cleanup to this group (project). None = settings default.
+            max_age_days: Remove episodes older than this many days.
+            dry_run: If True, only report stats without modifying data.
+
+        Returns:
+            Dict with cleanup stats.
+        """
+        gid = self._gid(group_id)
+        driver = self.graphiti.driver
+
+        stats: dict = {
+            "group_id": gid,
+            "dry_run": dry_run,
+            "duplicates_merged": 0,
+            "stale_facts_found": 0,
+            "stale_facts_removed": 0,
+            "orphans_found": 0,
+            "episodes_pruned": 0,
+            "duplicate_facts_removed": 0,
+        }
+
+        # 1. Find duplicate entities: same name + same group_id
+        dup_query = """
+        MATCH (n:Entity)
+        WHERE n.group_id = $gid
+        WITH n.name AS name, collect(n) AS nodes, count(*) AS cnt
+        WHERE cnt > 1
+        RETURN name, cnt, [x IN nodes | x.uuid] AS uuids
+        """
+        dup_records, _, _ = await driver.execute_query(dup_query, gid=gid)
+        total_dups = sum(r["cnt"] - 1 for r in dup_records)
+        stats["duplicates_merged"] = total_dups
+
+        if not dry_run and dup_records:
+            # For each set of duplicates, keep the first (most recently created),
+            # transfer relationships from others, then delete others.
+            merge_query = """
+            MATCH (n:Entity)
+            WHERE n.group_id = $gid
+            WITH n.name AS name, collect(n) AS nodes, count(*) AS cnt
+            WHERE cnt > 1
+            WITH name, head(nodes) AS keep, tail(nodes) AS remove
+            UNWIND remove AS dup
+            OPTIONAL MATCH (dup)-[r_out]->()
+            DELETE r_out
+            WITH keep, dup
+            OPTIONAL MATCH (dup)<-[r_in]-()
+            DELETE r_in
+            WITH keep, dup
+            DETACH DELETE dup
+            RETURN count(dup) AS merged
+            """
+            merge_records, _, _ = await driver.execute_query(merge_query, gid=gid)
+            if merge_records:
+                stats["duplicates_merged"] = merge_records[0]["merged"]
+
+        # 2. Find superseded/stale facts (invalid_at IS NOT NULL)
+        stale_query = """
+        MATCH ()-[e:RELATES_TO]->()
+        WHERE e.group_id = $gid AND e.invalid_at IS NOT NULL
+        RETURN count(e) AS stale_count
+        """
+        stale_records, _, _ = await driver.execute_query(stale_query, gid=gid)
+        stale_count = stale_records[0]["stale_count"] if stale_records else 0
+        stats["stale_facts_found"] = stale_count
+
+        if not dry_run and stale_count > 0:
+            del_stale_query = """
+            MATCH ()-[e:RELATES_TO]->()
+            WHERE e.group_id = $gid AND e.invalid_at IS NOT NULL
+            DELETE e
+            RETURN count(e) AS removed
+            """
+            del_records, _, _ = await driver.execute_query(del_stale_query, gid=gid)
+            stats["stale_facts_removed"] = del_records[0]["removed"] if del_records else 0
+
+        # 3. Find orphan entities (no relationships at all)
+        orphan_query = """
+        MATCH (n:Entity)
+        WHERE n.group_id = $gid
+          AND NOT (n)-[]-()
+        RETURN count(n) AS orphan_count
+        """
+        orphan_records, _, _ = await driver.execute_query(orphan_query, gid=gid)
+        stats["orphans_found"] = orphan_records[0]["orphan_count"] if orphan_records else 0
+
+        # 4. Delete old episodes (older than max_age_days)
+        episode_query = """
+        MATCH (ep:Episodic)
+        WHERE ep.group_id = $gid
+          AND ep.created_at < datetime() - duration({days: $max_age})
+        RETURN count(ep) AS old_count
+        """
+        ep_records, _, _ = await driver.execute_query(
+            episode_query, gid=gid, max_age=max_age_days,
+        )
+        old_ep_count = ep_records[0]["old_count"] if ep_records else 0
+        stats["episodes_pruned"] = old_ep_count
+
+        if not dry_run and old_ep_count > 0:
+            del_ep_query = """
+            MATCH (ep:Episodic)
+            WHERE ep.group_id = $gid
+              AND ep.created_at < datetime() - duration({days: $max_age})
+            DETACH DELETE ep
+            RETURN count(ep) AS pruned
+            """
+            del_ep_records, _, _ = await driver.execute_query(
+                del_ep_query, gid=gid, max_age=max_age_days,
+            )
+            stats["episodes_pruned"] = del_ep_records[0]["pruned"] if del_ep_records else 0
+
+        # 5. Consolidate duplicate facts: same source+target+relation_type, keep latest
+        dup_fact_query = """
+        MATCH (a:Entity)-[e:RELATES_TO]->(b:Entity)
+        WHERE e.group_id = $gid AND e.invalid_at IS NULL
+        WITH a, b, e.name AS rel_name, collect(e) AS edges, count(*) AS cnt
+        WHERE cnt > 1
+        RETURN count(*) AS dup_fact_groups,
+               sum(cnt - 1) AS removable
+        """
+        df_records, _, _ = await driver.execute_query(dup_fact_query, gid=gid)
+        removable = df_records[0]["removable"] if df_records else 0
+        stats["duplicate_facts_removed"] = removable
+
+        if not dry_run and removable > 0:
+            # Keep the edge with the latest created_at, delete the rest
+            dedup_fact_query = """
+            MATCH (a:Entity)-[e:RELATES_TO]->(b:Entity)
+            WHERE e.group_id = $gid AND e.invalid_at IS NULL
+            WITH a, b, e.name AS rel_name, collect(e) AS edges, count(*) AS cnt
+            WHERE cnt > 1
+            WITH edges[0] AS keep, edges[1..] AS remove
+            UNWIND remove AS dup_edge
+            DELETE dup_edge
+            RETURN count(dup_edge) AS removed
+            """
+            dedup_records, _, _ = await driver.execute_query(dedup_fact_query, gid=gid)
+            stats["duplicate_facts_removed"] = dedup_records[0]["removed"] if dedup_records else 0
+
+        return stats
+
     async def close(self) -> None:
         """Close Graphiti and Neo4j connection."""
         if self._graphiti:

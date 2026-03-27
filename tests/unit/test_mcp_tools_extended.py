@@ -398,3 +398,140 @@ async def test_code_graph_tools_explicit_project_overrides(mock_cg):
         mock_cg.search_code.assert_awaited_once_with("test", "explicit-proj", 20)
     finally:
         mod._current_project = original
+
+
+# ---------------------------------------------------------------------------
+# consolidate_memory MCP tool
+# ---------------------------------------------------------------------------
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_dry_run(mock_gs, mock_init):
+    """consolidate_memory() dry_run returns stats without modifying."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "test",
+        "dry_run": True,
+        "duplicates_merged": 2,
+        "stale_facts_found": 3,
+        "stale_facts_removed": 0,
+        "orphans_found": 1,
+        "episodes_pruned": 5,
+        "duplicate_facts_removed": 4,
+    })
+
+    from src.mcp_server import consolidate_memory
+    result = await consolidate_memory(dry_run=True)
+
+    assert "DRY RUN" in result
+    assert "Duplicate entities merged: 2" in result
+    assert "Stale facts (superseded): 3" in result
+    assert "Stale facts removed: 0" in result
+    assert "Orphan entities (no relations): 1" in result
+    assert "Old episodes pruned (>30d): 5" in result
+    assert "Duplicate facts consolidated: 4" in result
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_execute(mock_gs, mock_init):
+    """consolidate_memory() with dry_run=False reports EXECUTED."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "proj",
+        "dry_run": False,
+        "duplicates_merged": 1,
+        "stale_facts_found": 2,
+        "stale_facts_removed": 2,
+        "orphans_found": 0,
+        "episodes_pruned": 3,
+        "duplicate_facts_removed": 1,
+    })
+
+    from src.mcp_server import consolidate_memory
+    result = await consolidate_memory(dry_run=False)
+
+    assert "EXECUTED" in result
+    assert "Stale facts removed: 2" in result
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_project_forwarded(mock_gs, mock_init):
+    """consolidate_memory() passes project param as group_id."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "my-proj",
+        "dry_run": True,
+        "duplicates_merged": 0,
+        "stale_facts_found": 0,
+        "stale_facts_removed": 0,
+        "orphans_found": 0,
+        "episodes_pruned": 0,
+        "duplicate_facts_removed": 0,
+    })
+
+    from src.mcp_server import consolidate_memory
+    await consolidate_memory(project="my-proj")
+
+    call_kwargs = mock_gs.consolidate_memory.call_args[1]
+    assert call_kwargs["group_id"] == "my-proj"
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_max_age_forwarded(mock_gs, mock_init):
+    """consolidate_memory() passes max_age_days param."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "x",
+        "dry_run": True,
+        "duplicates_merged": 0,
+        "stale_facts_found": 0,
+        "stale_facts_removed": 0,
+        "orphans_found": 0,
+        "episodes_pruned": 0,
+        "duplicate_facts_removed": 0,
+    })
+
+    from src.mcp_server import consolidate_memory
+    await consolidate_memory(max_age_days=7)
+
+    call_kwargs = mock_gs.consolidate_memory.call_args[1]
+    assert call_kwargs["max_age_days"] == 7
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_error_handling(mock_gs, mock_init):
+    """consolidate_memory() returns error string on exception."""
+    mock_gs.consolidate_memory = AsyncMock(side_effect=RuntimeError("neo4j boom"))
+
+    from src.mcp_server import consolidate_memory
+    result = await consolidate_memory()
+
+    assert result.startswith("Error consolidating memory:")
+    assert "neo4j boom" in result
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_uses_auto_project(mock_gs, mock_init):
+    """consolidate_memory() uses _current_project when project is empty."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "auto-proj",
+        "dry_run": True,
+        "duplicates_merged": 0,
+        "stale_facts_found": 0,
+        "stale_facts_removed": 0,
+        "orphans_found": 0,
+        "episodes_pruned": 0,
+        "duplicate_facts_removed": 0,
+    })
+
+    import src.mcp_server as mod
+    original = mod._current_project
+    try:
+        mod._current_project = "auto-proj"
+        await mod.consolidate_memory(project="")
+        call_kwargs = mock_gs.consolidate_memory.call_args[1]
+        assert call_kwargs["group_id"] == "auto-proj"
+    finally:
+        mod._current_project = original
