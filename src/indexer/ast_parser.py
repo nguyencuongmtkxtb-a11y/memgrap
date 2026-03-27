@@ -31,7 +31,7 @@ class CodeSymbol:
 DEFAULT_IGNORE_DIRS = {
     "__pycache__", "node_modules", ".git", ".venv", "venv",
     "dist", "build", ".next", ".cache", ".tox", "egg-info",
-    "obj", "bin", "target", "vendor", "gen",
+    "obj", "bin", "target", "vendor",
 }
 
 

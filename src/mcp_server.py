@@ -215,7 +215,7 @@ async def index_codebase(
 
     Args:
         path: Directory path to index (e.g. "D:/myproject/src")
-        extensions: Comma-separated extensions (default: ".py,.js,.ts,.tsx,.jsx")
+        extensions: Comma-separated extensions (default: all supported — .py,.js,.ts,.tsx,.jsx,.go,.rs,.java,.c,.cpp,.cs,.rb,.php,.kt,.swift)
         full: Force full re-index instead of incremental (default: False)
     """
     await _ensure_init()

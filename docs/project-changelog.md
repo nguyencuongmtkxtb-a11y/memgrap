@@ -1,5 +1,14 @@
 # Project Changelog
 
+## 2026-03-27 — Fix: index all supported extensions by default
+
+### Bug Fix
+- **fix(indexer): remove `gen` from DEFAULT_IGNORE_DIRS** — generated code (protobuf, etc.) was skipped during indexing, missing functions/classes/calls. Now indexed by default.
+- **fix(mcp): `index_codebase` defaults to all 21 supported extensions** — previously docstring implied `.py,.js,.ts,.tsx,.jsx` default, misleading callers to pass limited extensions. Now clearly documents all supported extensions.
+
+### Impact (2net project)
+- Files: 131 → 154, Functions: 528 → 1370, Classes: 115 → 238, CALLS: 1715 → 2838
+
 ## 2026-03-27 — Project isolation for memory tools
 
 ### Feature
