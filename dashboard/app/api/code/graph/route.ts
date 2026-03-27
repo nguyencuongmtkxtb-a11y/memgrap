@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import neo4j from 'neo4j-driver'
 import { runQuery } from '@/lib/neo4j'
 
 interface GraphNode {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
   const project = searchParams.get('project') ?? ''
   const relType = searchParams.get('rel') ?? ''  // filter by relationship type
   const search = searchParams.get('search') ?? ''
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '500'), 2000)
+  const limit = neo4j.int(Math.min(parseInt(searchParams.get('limit') ?? '500') || 500, 2000))
 
   try {
     // Fetch nodes: files, functions, classes that have relationships
