@@ -13,6 +13,7 @@ import urllib.request
 
 from mcp.server.fastmcp import FastMCP
 
+from src.code_graph_service import CodeGraphService
 from src.config import get_settings
 from src.graph_service import GraphService
 
@@ -38,6 +39,7 @@ mcp = FastMCP(
 
 settings = get_settings()
 graph_service = GraphService(settings)
+code_graph = CodeGraphService(settings)
 
 
 async def _ensure_init() -> None:
@@ -251,6 +253,106 @@ async def get_status() -> str:
     return _fmt(status)
 
 
+# --- Code Graph Tools (zero OpenAI cost — direct Neo4j queries) ---
+
+
+@mcp.tool()
+async def find_callers(function_name: str, project: str = "") -> str:
+    """Find all functions that call a given function.
+
+    Use for impact analysis: before modifying a function, check who calls it.
+
+    Args:
+        function_name: Name of the function to find callers for
+        project: Optional project filter
+    """
+    try:
+        results = await code_graph.find_callers(function_name, project)
+        if not results:
+            return f"No callers found for '{function_name}'."
+        return _fmt(results)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+async def find_callees(function_name: str, project: str = "") -> str:
+    """Find all functions that a given function calls.
+
+    Use for understanding execution flow and dependencies.
+
+    Args:
+        function_name: Name of the function to analyze
+        project: Optional project filter
+    """
+    try:
+        results = await code_graph.find_callees(function_name, project)
+        if not results:
+            return f"No callees found for '{function_name}'."
+        return _fmt(results)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+async def find_class_hierarchy(class_name: str, project: str = "") -> str:
+    """Find parent and child classes for a given class.
+
+    Shows inheritance relationships: what a class extends and what extends it.
+
+    Args:
+        class_name: Name of the class to analyze
+        project: Optional project filter
+    """
+    try:
+        results = await code_graph.find_class_hierarchy(class_name, project)
+        if not results:
+            return f"No hierarchy found for '{class_name}'."
+        return _fmt(results)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+async def find_file_imports(file_path: str, project: str = "") -> str:
+    """Find import relationships for a file.
+
+    Shows what files this file imports and what files import this file.
+    Useful for tracing data flow and understanding module dependencies.
+
+    Args:
+        file_path: File path (or suffix like 'server.py')
+        project: Optional project filter
+    """
+    try:
+        results = await code_graph.find_file_imports(file_path, project)
+        if not results:
+            return f"No import relationships found for '{file_path}'."
+        return _fmt(results)
+    except Exception as e:
+        return f"Error: {e}"
+
+
+@mcp.tool()
+async def search_code(query: str, project: str = "", limit: int = 20) -> str:
+    """Search indexed code symbols by name.
+
+    Searches functions, classes, and files. Use for discovering code structure.
+
+    Args:
+        query: Search term (case-insensitive substring match)
+        project: Optional project filter
+        limit: Max results (default: 20)
+    """
+    try:
+        results = await code_graph.search_code(query, project, limit)
+        if not results:
+            return f"No code symbols matching '{query}'."
+        return _fmt(results)
+    except Exception as e:
+        return f"Error: {e}"
+
+
 # --- Lifecycle ---
 
 def _cleanup() -> None:
@@ -262,7 +364,10 @@ def _cleanup() -> None:
     try:
         asyncio.run(graph_service.close())
     except (RuntimeError, Exception):
-        # Event loop already closed or other shutdown race — safe to ignore
+        pass
+    try:
+        asyncio.run(code_graph.close())
+    except (RuntimeError, Exception):
         pass
 
 atexit.register(_cleanup)
