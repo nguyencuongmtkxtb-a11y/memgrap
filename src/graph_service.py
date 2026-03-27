@@ -203,15 +203,18 @@ class GraphService:
         group_id: str | None = None,
         max_age_days: int = 30,
         dry_run: bool = True,
+        use_ai: bool = False,
     ) -> dict:
         """Review and clean up knowledge graph: dedup, prune stale, find orphans.
 
-        All operations use direct Cypher queries — zero OpenAI/LLM cost.
+        Phases 1-5 use direct Cypher queries (zero OpenAI cost).
+        Phase 6 (opt-in via use_ai=True) uses OpenAI LLM for semantic analysis.
 
         Args:
             group_id: Scope cleanup to this group (project). None = settings default.
             max_age_days: Remove episodes older than this many days.
             dry_run: If True, only report stats without modifying data.
+            use_ai: If True, run AI-powered semantic analysis (costs API tokens).
 
         Returns:
             Dict with cleanup stats.
@@ -348,6 +351,129 @@ class GraphService:
             """
             dedup_records, _, _ = await driver.execute_query(dedup_fact_query, gid=gid)
             stats["duplicate_facts_removed"] = dedup_records[0]["removed"] if dedup_records else 0
+
+        # 6. AI-powered semantic analysis (optional, costs API tokens)
+        if use_ai:
+            ai_stats = await self._ai_consolidate(gid, dry_run)
+            stats.update(ai_stats)
+
+        return stats
+
+    async def _ai_consolidate(self, gid: str, dry_run: bool) -> dict:
+        """Use LLM to find semantic duplicates, conflicts, and summarizable facts."""
+        import json
+
+        import openai
+
+        driver = self.graphiti.driver
+        stats = {
+            "ai_semantic_merges": 0,
+            "ai_conflicts_resolved": 0,
+            "ai_facts_summarized": 0,
+        }
+
+        # Fetch all entities and facts for this group
+        entities_query = """
+        MATCH (n:Entity) WHERE n.group_id = $gid
+        RETURN n.uuid AS uuid, n.name AS name, n.summary AS summary
+        ORDER BY n.name
+        """
+        entities, _, _ = await driver.execute_query(entities_query, gid=gid)
+
+        facts_query = """
+        MATCH (a:Entity)-[e:RELATES_TO]->(b:Entity)
+        WHERE e.group_id = $gid AND e.invalid_at IS NULL
+        RETURN a.name AS source, b.name AS target, e.name AS relation,
+               e.fact AS fact, e.uuid AS uuid, e.created_at AS created_at
+        ORDER BY e.created_at DESC
+        """
+        facts, _, _ = await driver.execute_query(facts_query, gid=gid)
+
+        if not entities and not facts:
+            return stats
+
+        # Build context for LLM
+        entity_list = "\n".join(
+            f"- {e['name']}: {e['summary'] or 'no summary'}" for e in entities
+        )
+        fact_list = "\n".join(
+            f"- [{f['source']}] --{f['relation']}--> [{f['target']}]: "
+            f"{f['fact']} (uuid={f['uuid']})"
+            for f in facts
+        )
+
+        # Call OpenAI for analysis
+        try:
+            client = openai.AsyncOpenAI(api_key=self._settings.openai_api_key)
+
+            prompt = (
+                "Analyze this knowledge graph data and identify cleanup actions.\n\n"
+                f"ENTITIES:\n{entity_list}\n\n"
+                f"FACTS:\n{fact_list}\n\n"
+                "Return a JSON object with exactly these keys:\n"
+                "{\n"
+                '  "semantic_duplicates": [\n'
+                '    {"keep": "entity name to keep", "merge": "entity name to merge into keep", "reason": "why"}\n'
+                "  ],\n"
+                '  "conflicting_facts": [\n'
+                '    {"keep_uuid": "uuid of fact to keep", "invalidate_uuid": "uuid of conflicting fact", "reason": "why"}\n'
+                "  ],\n"
+                '  "summarizable_groups": [\n'
+                '    {"topic": "topic name", "fact_uuids": ["uuid1", "uuid2"], "summary": "consolidated summary"}\n'
+                "  ]\n"
+                "}\n\n"
+                "Rules:\n"
+                "- Only flag TRUE semantic duplicates (same concept, different wording)\n"
+                "- Only flag REAL conflicts (contradictory statements about same thing)\n"
+                "- Only group facts that are genuinely about the exact same narrow topic\n"
+                "- Be conservative — when in doubt, don't flag it\n"
+                "- Return empty arrays if nothing to clean up"
+            )
+
+            response = await client.chat.completions.create(
+                model=self._settings.llm_model,
+                messages=[{"role": "user", "content": prompt}],
+                response_format={"type": "json_object"},
+                temperature=0,
+            )
+
+            result = json.loads(response.choices[0].message.content)
+        except Exception as e:
+            logger.warning("AI consolidation failed: %s", e)
+            return stats
+
+        # Process semantic duplicates
+        for dup in result.get("semantic_duplicates", []):
+            stats["ai_semantic_merges"] += 1
+            if not dry_run:
+                await driver.execute_query(
+                    "MATCH (keep:Entity {name: $keep, group_id: $gid}) "
+                    "MATCH (dup:Entity {name: $merge, group_id: $gid}) "
+                    "WITH keep, dup "
+                    "OPTIONAL MATCH (dup)-[r]->() DELETE r "
+                    "WITH keep, dup "
+                    "OPTIONAL MATCH (dup)<-[r]-() DELETE r "
+                    "WITH keep, dup DETACH DELETE dup",
+                    keep=dup["keep"],
+                    merge=dup["merge"],
+                    gid=gid,
+                )
+
+        # Process conflicts — invalidate the older/wrong fact
+        for conflict in result.get("conflicting_facts", []):
+            stats["ai_conflicts_resolved"] += 1
+            if not dry_run:
+                now = datetime.now(timezone.utc).isoformat()
+                await driver.execute_query(
+                    "MATCH ()-[e:RELATES_TO]->() WHERE e.uuid = $uuid "
+                    "SET e.invalid_at = $now",
+                    uuid=conflict["invalidate_uuid"],
+                    now=now,
+                )
+
+        # Process summarizable facts — report only in v1, no auto-execute
+        for group in result.get("summarizable_groups", []):
+            stats["ai_facts_summarized"] += len(group.get("fact_uuids", []))
 
         return stats
 

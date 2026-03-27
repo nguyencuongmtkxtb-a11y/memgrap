@@ -392,3 +392,295 @@ async def test_consolidate_memory_uses_default_gid():
     stats = await svc.consolidate_memory(dry_run=True)
 
     assert stats["group_id"] == "default-proj"
+
+
+# ---------------------------------------------------------------------------
+# _ai_consolidate — mocked OpenAI
+# ---------------------------------------------------------------------------
+
+
+def _mock_openai_response(content: dict):
+    """Build a mock OpenAI chat completion response."""
+    import json
+
+    choice = MagicMock()
+    choice.message.content = json.dumps(content)
+    response = MagicMock()
+    response.choices = [choice]
+    return response
+
+
+async def test_ai_consolidate_empty_graph():
+    """_ai_consolidate returns zero stats when no entities or facts."""
+    svc = GraphService(_make_settings())
+    svc._initialized = True
+
+    driver = AsyncMock()
+    # entities query returns empty, facts query returns empty
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            ([], None, None),  # entities
+            ([], None, None),  # facts
+        ]
+    )
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = driver
+    svc._graphiti = mock_graphiti
+
+    stats = await svc._ai_consolidate("test-gid", dry_run=True)
+
+    assert stats["ai_semantic_merges"] == 0
+    assert stats["ai_conflicts_resolved"] == 0
+    assert stats["ai_facts_summarized"] == 0
+    # Only 2 queries: entities + facts
+    assert driver.execute_query.call_count == 2
+
+
+@patch("openai.AsyncOpenAI")
+async def test_ai_consolidate_dry_run_finds_duplicates(mock_openai_cls):
+    """_ai_consolidate dry_run counts merges but does not execute."""
+    svc = GraphService(_make_settings())
+    svc._initialized = True
+
+    driver = AsyncMock()
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            # entities
+            (
+                [
+                    {"uuid": "e1", "name": "auth system", "summary": "Authentication"},
+                    {"uuid": "e2", "name": "authentication module", "summary": "Auth module"},
+                ],
+                None,
+                None,
+            ),
+            # facts
+            (
+                [
+                    {
+                        "source": "auth system",
+                        "target": "users",
+                        "relation": "manages",
+                        "fact": "auth manages users",
+                        "uuid": "f1",
+                        "created_at": "2024-01-01",
+                    },
+                ],
+                None,
+                None,
+            ),
+        ]
+    )
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = driver
+    svc._graphiti = mock_graphiti
+
+    # Mock OpenAI client
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(
+        return_value=_mock_openai_response({
+            "semantic_duplicates": [
+                {"keep": "auth system", "merge": "authentication module", "reason": "same concept"},
+            ],
+            "conflicting_facts": [],
+            "summarizable_groups": [],
+        })
+    )
+    mock_openai_cls.return_value = mock_client
+
+    stats = await svc._ai_consolidate("test-gid", dry_run=True)
+
+    assert stats["ai_semantic_merges"] == 1
+    assert stats["ai_conflicts_resolved"] == 0
+    assert stats["ai_facts_summarized"] == 0
+    # Only 2 read queries (entities + facts), no write queries in dry run
+    assert driver.execute_query.call_count == 2
+
+
+@patch("openai.AsyncOpenAI")
+async def test_ai_consolidate_execute_merges_and_resolves(mock_openai_cls):
+    """_ai_consolidate dry_run=False executes merge and invalidation queries."""
+    svc = GraphService(_make_settings())
+    svc._initialized = True
+
+    driver = AsyncMock()
+    # Side effects: entities, facts, then merge query, then invalidate query
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            # entities
+            (
+                [
+                    {"uuid": "e1", "name": "API", "summary": "REST API"},
+                    {"uuid": "e2", "name": "REST interface", "summary": "REST API"},
+                ],
+                None,
+                None,
+            ),
+            # facts
+            (
+                [
+                    {
+                        "source": "API",
+                        "target": "v2",
+                        "relation": "uses_version",
+                        "fact": "API uses version 2",
+                        "uuid": "f1",
+                        "created_at": "2024-06-01",
+                    },
+                    {
+                        "source": "API",
+                        "target": "v1",
+                        "relation": "uses_version",
+                        "fact": "API uses version 1",
+                        "uuid": "f2",
+                        "created_at": "2024-01-01",
+                    },
+                ],
+                None,
+                None,
+            ),
+            # merge write (for semantic dup)
+            ([], None, None),
+            # invalidate write (for conflict)
+            ([], None, None),
+        ]
+    )
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = driver
+    svc._graphiti = mock_graphiti
+
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(
+        return_value=_mock_openai_response({
+            "semantic_duplicates": [
+                {"keep": "API", "merge": "REST interface", "reason": "same"},
+            ],
+            "conflicting_facts": [
+                {"keep_uuid": "f1", "invalidate_uuid": "f2", "reason": "v2 supersedes v1"},
+            ],
+            "summarizable_groups": [],
+        })
+    )
+    mock_openai_cls.return_value = mock_client
+
+    stats = await svc._ai_consolidate("test-gid", dry_run=False)
+
+    assert stats["ai_semantic_merges"] == 1
+    assert stats["ai_conflicts_resolved"] == 1
+    # 2 reads + 1 merge write + 1 invalidate write = 4
+    assert driver.execute_query.call_count == 4
+
+
+@patch("openai.AsyncOpenAI")
+async def test_ai_consolidate_summarizable_groups(mock_openai_cls):
+    """_ai_consolidate counts summarizable facts without executing."""
+    svc = GraphService(_make_settings())
+    svc._initialized = True
+
+    driver = AsyncMock()
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            ([{"uuid": "e1", "name": "DB", "summary": "Database"}], None, None),
+            (
+                [
+                    {"source": "DB", "target": "X", "relation": "r1", "fact": "fact1", "uuid": "f1", "created_at": "2024-01-01"},
+                    {"source": "DB", "target": "Y", "relation": "r2", "fact": "fact2", "uuid": "f2", "created_at": "2024-01-02"},
+                    {"source": "DB", "target": "Z", "relation": "r3", "fact": "fact3", "uuid": "f3", "created_at": "2024-01-03"},
+                ],
+                None,
+                None,
+            ),
+        ]
+    )
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = driver
+    svc._graphiti = mock_graphiti
+
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(
+        return_value=_mock_openai_response({
+            "semantic_duplicates": [],
+            "conflicting_facts": [],
+            "summarizable_groups": [
+                {"topic": "DB config", "fact_uuids": ["f1", "f2", "f3"], "summary": "DB manages X, Y, Z"},
+            ],
+        })
+    )
+    mock_openai_cls.return_value = mock_client
+
+    stats = await svc._ai_consolidate("test-gid", dry_run=True)
+
+    assert stats["ai_facts_summarized"] == 3
+    assert stats["ai_semantic_merges"] == 0
+
+
+@patch("openai.AsyncOpenAI")
+async def test_ai_consolidate_openai_failure_graceful(mock_openai_cls):
+    """_ai_consolidate returns zero stats when OpenAI call fails."""
+    svc = GraphService(_make_settings())
+    svc._initialized = True
+
+    driver = AsyncMock()
+    driver.execute_query = AsyncMock(
+        side_effect=[
+            ([{"uuid": "e1", "name": "Node", "summary": "A node"}], None, None),
+            ([{"source": "Node", "target": "B", "relation": "r", "fact": "f", "uuid": "f1", "created_at": "2024-01-01"}], None, None),
+        ]
+    )
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = driver
+    svc._graphiti = mock_graphiti
+
+    mock_client = AsyncMock()
+    mock_client.chat.completions.create = AsyncMock(
+        side_effect=RuntimeError("API key invalid")
+    )
+    mock_openai_cls.return_value = mock_client
+
+    stats = await svc._ai_consolidate("test-gid", dry_run=False)
+
+    # Graceful failure — zero stats, no crash
+    assert stats["ai_semantic_merges"] == 0
+    assert stats["ai_conflicts_resolved"] == 0
+    assert stats["ai_facts_summarized"] == 0
+
+
+async def test_consolidate_memory_use_ai_passthrough():
+    """consolidate_memory passes use_ai to _ai_consolidate."""
+    svc = GraphService(_make_settings(group_id="proj"))
+    svc._initialized = True
+
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = _mock_driver_for_consolidate()
+    svc._graphiti = mock_graphiti
+
+    # Mock _ai_consolidate to verify it's called
+    svc._ai_consolidate = AsyncMock(return_value={
+        "ai_semantic_merges": 2,
+        "ai_conflicts_resolved": 1,
+        "ai_facts_summarized": 3,
+    })
+
+    stats = await svc.consolidate_memory(group_id="proj", dry_run=True, use_ai=True)
+
+    svc._ai_consolidate.assert_awaited_once_with("proj", True)
+    assert stats["ai_semantic_merges"] == 2
+    assert stats["ai_conflicts_resolved"] == 1
+    assert stats["ai_facts_summarized"] == 3
+
+
+async def test_consolidate_memory_no_ai_by_default():
+    """consolidate_memory does NOT call _ai_consolidate when use_ai=False."""
+    svc = GraphService(_make_settings(group_id="proj"))
+    svc._initialized = True
+
+    mock_graphiti = MagicMock()
+    mock_graphiti.driver = _mock_driver_for_consolidate()
+    svc._graphiti = mock_graphiti
+
+    svc._ai_consolidate = AsyncMock()
+
+    stats = await svc.consolidate_memory(group_id="proj", dry_run=True, use_ai=False)
+
+    svc._ai_consolidate.assert_not_awaited()
+    assert "ai_semantic_merges" not in stats

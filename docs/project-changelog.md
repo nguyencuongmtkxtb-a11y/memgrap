@@ -1,5 +1,18 @@
 # Project Changelog
 
+## 2026-03-27 — AI-powered semantic consolidation
+
+### Feature
+- **feat(mcp): AI semantic analysis in `consolidate_memory`** — New opt-in `use_ai=True` parameter adds Phase 6 using OpenAI LLM to: (1) find semantic duplicates with different names but same meaning (e.g. "auth system" vs "authentication module"), (2) detect contradicting facts and invalidate the older one, (3) identify groups of related facts that could be summarized.
+- **feat(graph_service): `_ai_consolidate()` private method** — Fetches all entities+facts for a group, sends them to OpenAI with structured JSON output, then applies merge/invalidation actions. Summarization is report-only in v1. Gracefully handles OpenAI failures (returns zero stats, no crash).
+
+### Parameters
+- `use_ai` (default: `False`): Opt-in AI semantic analysis (costs API tokens)
+- Output includes `ai_semantic_merges`, `ai_conflicts_resolved`, `ai_facts_summarized` stats
+
+### Tests
+- 9 new unit tests: empty graph, dry run with duplicates, execute mode merges+conflicts, summarizable groups, OpenAI failure graceful handling, use_ai passthrough, no-AI default, MCP use_ai forwarding, MCP AI section display
+
 ## 2026-03-27 — Memory consolidation tool
 
 ### Feature

@@ -535,3 +535,59 @@ async def test_consolidate_memory_uses_auto_project(mock_gs, mock_init):
         assert call_kwargs["group_id"] == "auto-proj"
     finally:
         mod._current_project = original
+
+
+# ---------------------------------------------------------------------------
+# consolidate_memory — use_ai parameter
+# ---------------------------------------------------------------------------
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_use_ai_forwarded(mock_gs, mock_init):
+    """consolidate_memory() passes use_ai=True to graph_service."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "proj",
+        "dry_run": True,
+        "duplicates_merged": 0,
+        "stale_facts_found": 0,
+        "stale_facts_removed": 0,
+        "orphans_found": 0,
+        "episodes_pruned": 0,
+        "duplicate_facts_removed": 0,
+        "ai_semantic_merges": 1,
+        "ai_conflicts_resolved": 2,
+        "ai_facts_summarized": 3,
+    })
+
+    from src.mcp_server import consolidate_memory
+    result = await consolidate_memory(use_ai=True)
+
+    call_kwargs = mock_gs.consolidate_memory.call_args[1]
+    assert call_kwargs["use_ai"] is True
+    assert "AI Semantic Analysis" in result
+    assert "AI semantic merges: 1" in result
+    assert "AI conflicts resolved: 2" in result
+    assert "AI facts summarized: 3" in result
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_consolidate_memory_no_ai_section_when_disabled(mock_gs, mock_init):
+    """consolidate_memory() omits AI section when use_ai=False."""
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "group_id": "proj",
+        "dry_run": True,
+        "duplicates_merged": 0,
+        "stale_facts_found": 0,
+        "stale_facts_removed": 0,
+        "orphans_found": 0,
+        "episodes_pruned": 0,
+        "duplicate_facts_removed": 0,
+    })
+
+    from src.mcp_server import consolidate_memory
+    result = await consolidate_memory(use_ai=False)
+
+    assert "AI Semantic Analysis" not in result
+    assert "AI semantic merges" not in result

@@ -289,17 +289,21 @@ async def get_status() -> str:
 async def consolidate_memory(
     max_age_days: int = 30,
     dry_run: bool = True,
+    use_ai: bool = False,
     project: str = "",
 ) -> str:
     """Consolidate and clean up the knowledge graph memory.
 
     Reviews all stored memories, removes stale/duplicate data,
     merges related insights, and updates temporal validity.
-    Zero OpenAI cost — uses direct Cypher queries only.
+    Phases 1-5 use direct Cypher queries (zero OpenAI cost).
+    Phase 6 (opt-in) uses OpenAI LLM for semantic dedup, conflict resolution,
+    and fact summarization.
 
     Args:
         max_age_days: Remove episodes older than this (default: 30)
         dry_run: If true, only report what would be cleaned (default: true)
+        use_ai: If true, use OpenAI LLM for semantic analysis (costs API tokens)
         project: Optional project filter
     """
     await _ensure_init()
@@ -309,6 +313,7 @@ async def consolidate_memory(
             group_id=gid,
             max_age_days=max_age_days,
             dry_run=dry_run,
+            use_ai=use_ai,
         )
         if not dry_run:
             _notify_dashboard("memory:consolidated", gid)
@@ -323,6 +328,12 @@ async def consolidate_memory(
             f"  Old episodes pruned (>{max_age_days}d): {stats['episodes_pruned']}",
             f"  Duplicate facts consolidated: {stats['duplicate_facts_removed']}",
         ]
+        # Append AI stats if AI analysis was used
+        if use_ai:
+            lines.append("  --- AI Semantic Analysis ---")
+            lines.append(f"  AI semantic merges: {stats.get('ai_semantic_merges', 0)}")
+            lines.append(f"  AI conflicts resolved: {stats.get('ai_conflicts_resolved', 0)}")
+            lines.append(f"  AI facts summarized: {stats.get('ai_facts_summarized', 0)}")
         return "\n".join(lines)
     except Exception as e:
         logger.error("consolidate_memory failed: %s", e)
