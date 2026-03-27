@@ -118,7 +118,11 @@ class GraphService:
             raise RuntimeError("GraphService not initialized. Call initialize() first.")
         return self._graphiti
 
-    async def add_memory(self, content: str, source: str = "claude_code", name: str | None = None) -> dict:
+    def _gid(self, group_id: str | None = None) -> str:
+        """Resolve effective group_id: explicit param > settings default."""
+        return group_id or self._settings.group_id
+
+    async def add_memory(self, content: str, source: str = "claude_code", name: str | None = None, group_id: str | None = None) -> dict:
         """Ingest text into the knowledge graph. Returns extracted entity/fact summary."""
         episode_name = name or f"memory-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}"
         result = await self.graphiti.add_episode(
@@ -127,7 +131,7 @@ class GraphService:
             source=EpisodeType.text,
             source_description=source,
             reference_time=datetime.now(timezone.utc),
-            group_id=self._settings.group_id,
+            group_id=self._gid(group_id),
             entity_types=ENTITY_TYPES,
         )
         return {
@@ -138,36 +142,36 @@ class GraphService:
             "facts": [e.fact for e in (result.edges or [])],
         }
 
-    async def recall(self, query: str, num_results: int = 10) -> list[dict]:
+    async def recall(self, query: str, num_results: int = 10, group_id: str | None = None) -> list[dict]:
         """Hybrid search for facts (edges). Returns temporal fact list."""
         edges = await self.graphiti.search(
-            query=query, group_ids=[self._settings.group_id], num_results=num_results,
+            query=query, group_ids=[self._gid(group_id)], num_results=num_results,
         )
         return [format_edge(e) for e in edges]
 
-    async def search_nodes(self, query: str, num_results: int = 10) -> list[dict]:
+    async def search_nodes(self, query: str, num_results: int = 10, group_id: str | None = None) -> list[dict]:
         """Search entity nodes via NODE_HYBRID_SEARCH_RRF recipe (public API)."""
         config = NODE_HYBRID_SEARCH_RRF.model_copy(deep=True)
         config.limit = num_results
         results: SearchResults = await self.graphiti.search_(
-            query=query, config=config, group_ids=[self._settings.group_id],
+            query=query, config=config, group_ids=[self._gid(group_id)],
         )
         return [format_node(n) for n in (results.nodes or [])]
 
-    async def search_facts(self, query: str, num_results: int = 10) -> list[dict]:
+    async def search_facts(self, query: str, num_results: int = 10, group_id: str | None = None) -> list[dict]:
         """Search relationship edges via EDGE_HYBRID_SEARCH_RRF recipe (public API)."""
         config = EDGE_HYBRID_SEARCH_RRF.model_copy(deep=True)
         config.limit = num_results
         results: SearchResults = await self.graphiti.search_(
-            query=query, config=config, group_ids=[self._settings.group_id],
+            query=query, config=config, group_ids=[self._gid(group_id)],
         )
         return [format_edge(e) for e in (results.edges or [])]
 
-    async def get_episodes(self, last_n: int = 10) -> list[dict]:
+    async def get_episodes(self, last_n: int = 10, group_id: str | None = None) -> list[dict]:
         """Retrieve recent episodes (raw ingested data)."""
         episodes = await self.graphiti.retrieve_episodes(
             reference_time=datetime.now(timezone.utc),
-            group_ids=[self._settings.group_id], last_n=last_n,
+            group_ids=[self._gid(group_id)], last_n=last_n,
         )
         return [format_episode(ep) for ep in episodes]
 

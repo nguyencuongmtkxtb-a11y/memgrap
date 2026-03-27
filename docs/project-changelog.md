@@ -1,5 +1,11 @@
 # Project Changelog
 
+## 2026-03-27 — Project isolation for memory tools
+
+### Feature
+- **feat(mcp): `project` param on all 5 memory tools** — `remember`, `recall`, `understand_code`, `get_history`, `search_facts` now accept optional `project` param to isolate memories per project via Graphiti `group_id`. Empty string falls back to config default.
+- **feat(graph_service): `group_id` override on all memory methods** — `add_memory`, `recall`, `search_nodes`, `search_facts`, `get_episodes` accept `group_id` param. Helper `_gid()` resolves explicit param vs settings default.
+
 ## 2026-03-27 — Fix: full-mode indexing + IMPORTS_FROM resolution
 
 ### Bug Fixes

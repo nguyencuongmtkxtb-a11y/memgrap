@@ -83,6 +83,7 @@ async def remember(
     content: str,
     source: str = "claude_code",
     name: str | None = None,
+    project: str = "",
 ) -> str:
     """Store information into the knowledge graph.
 
@@ -93,10 +94,11 @@ async def remember(
         content: The text to remember (e.g. "We chose PostgreSQL because...")
         source: Source label (default: claude_code)
         name: Optional episode name
+        project: Optional project name to isolate memories per project
     """
     await _ensure_init()
     try:
-        result = await graph_service.add_memory(content=content, source=source, name=name)
+        result = await graph_service.add_memory(content=content, source=source, name=name, group_id=project or None)
         _notify_dashboard("entity:created")
         return (
             f"Stored. Extracted {result['nodes_count']} entities, "
@@ -109,7 +111,7 @@ async def remember(
 
 
 @mcp.tool()
-async def recall(query: str, num_results: int = 10) -> str:
+async def recall(query: str, num_results: int = 10, project: str = "") -> str:
     """Search the knowledge graph for relevant memories.
 
     Returns facts (relationships between entities) ranked by relevance.
@@ -118,10 +120,11 @@ async def recall(query: str, num_results: int = 10) -> str:
     Args:
         query: Natural language query (e.g. "What auth approach did we choose?")
         num_results: Max results to return (default: 10)
+        project: Optional project filter
     """
     await _ensure_init()
     try:
-        results = await graph_service.recall(query=query, num_results=num_results)
+        results = await graph_service.recall(query=query, num_results=num_results, group_id=project or None)
         if not results:
             return "No relevant memories found."
         return _fmt(results)
@@ -131,7 +134,7 @@ async def recall(query: str, num_results: int = 10) -> str:
 
 
 @mcp.tool()
-async def understand_code(query: str, num_results: int = 10) -> str:
+async def understand_code(query: str, num_results: int = 10, project: str = "") -> str:
     """Search for code-related entities: patterns, tools, libraries, decisions.
 
     Returns entity nodes with names, summaries, and labels.
@@ -139,10 +142,11 @@ async def understand_code(query: str, num_results: int = 10) -> str:
     Args:
         query: What to search for (e.g. "authentication patterns")
         num_results: Max results (default: 10)
+        project: Optional project filter
     """
     await _ensure_init()
     try:
-        results = await graph_service.search_nodes(query=query, num_results=num_results)
+        results = await graph_service.search_nodes(query=query, num_results=num_results, group_id=project or None)
         if not results:
             return "No code entities found."
         return _fmt(results)
@@ -152,17 +156,18 @@ async def understand_code(query: str, num_results: int = 10) -> str:
 
 
 @mcp.tool()
-async def get_history(last_n: int = 10) -> str:
+async def get_history(last_n: int = 10, project: str = "") -> str:
     """Get the timeline of recently stored memories (episodes).
 
     Shows what information was stored and when. Useful for session review.
 
     Args:
         last_n: Number of recent episodes to retrieve (default: 10)
+        project: Optional project filter
     """
     await _ensure_init()
     try:
-        episodes = await graph_service.get_episodes(last_n=last_n)
+        episodes = await graph_service.get_episodes(last_n=last_n, group_id=project or None)
         if not episodes:
             return "No memory history found."
         return _fmt(episodes)
@@ -172,7 +177,7 @@ async def get_history(last_n: int = 10) -> str:
 
 
 @mcp.tool()
-async def search_facts(query: str, num_results: int = 10) -> str:
+async def search_facts(query: str, num_results: int = 10, project: str = "") -> str:
     """Find facts (relationships between entities) in the knowledge graph.
 
     Facts are temporal — they track when something became true and when superseded.
@@ -181,10 +186,11 @@ async def search_facts(query: str, num_results: int = 10) -> str:
     Args:
         query: Natural language query
         num_results: Max results (default: 10)
+        project: Optional project filter
     """
     await _ensure_init()
     try:
-        results = await graph_service.search_facts(query=query, num_results=num_results)
+        results = await graph_service.search_facts(query=query, num_results=num_results, group_id=project or None)
         if not results:
             return "No facts found."
         return _fmt(results)
