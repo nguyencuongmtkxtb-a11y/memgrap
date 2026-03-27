@@ -8,6 +8,8 @@
 - Lazy initialization on first tool call
 - **OpenAI key validation** on first tool call — clear error if missing (before Graphiti init)
 - All logging to stderr (stdout = MCP JSON-RPC)
+- **Cross-project support:** Global config in `~/.claude.json` with fixed `cwd: D:/MEMGRAP`. Claude passes `project` param per tool call.
+- **Auto-register projects:** Creates `(:Project)` marker node in Neo4j on first encounter via `MERGE`
 
 ### Graph Service (`src/graph_service.py`)
 - Wraps Graphiti Core API

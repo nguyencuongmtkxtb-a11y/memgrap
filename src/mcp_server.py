@@ -8,6 +8,7 @@ import asyncio
 import atexit
 import json
 import logging
+import os
 import sys
 import urllib.request
 from pathlib import Path
@@ -27,7 +28,10 @@ logging.basicConfig(
 logger = logging.getLogger("memgrap")
 
 # --- Auto-detect project from CWD ---
-_current_project: str = Path.cwd().name
+# NOTE: When running as MCP subprocess, CWD is always MEMGRAP (fixed in config).
+# The real project is passed by Claude via the `project` parameter on each tool call.
+# This fallback is only used when `project` param is empty AND no env override.
+_current_project: str = os.environ.get("MEMGRAP_PROJECT", "") or Path.cwd().name
 
 # --- Server & service setup ---
 
@@ -37,7 +41,10 @@ mcp = FastMCP(
         "Persistent memory for Claude Code backed by a temporal knowledge graph. "
         "Use 'remember' to store decisions, patterns, context. "
         "Use 'recall' to retrieve relevant memories via semantic search. "
-        "Facts track temporal validity — the graph knows when things changed."
+        "Facts track temporal validity — the graph knows when things changed.\n\n"
+        "IMPORTANT: Always pass the `project` parameter with the current project's "
+        "folder name (e.g. 'goclaw', 'QuanNet'). The MCP server runs in a fixed "
+        "directory and cannot auto-detect which project you are working on."
     ),
 )
 
@@ -47,6 +54,29 @@ code_graph = CodeGraphService(settings)
 
 
 _consolidation_done = False
+_registered_projects: set[str] = set()
+
+
+async def _register_project(project: str) -> None:
+    """Register a project in Neo4j if seen for the first time.
+
+    Creates a lightweight marker node so the project is discoverable
+    via dashboard queries even before any memories are stored.
+    """
+    if not project or project in _registered_projects:
+        return
+    _registered_projects.add(project)
+    try:
+        driver = graph_service.graphiti.driver
+        async with driver.session() as session:
+            await session.run(
+                "MERGE (p:Project {name: $name}) "
+                "ON CREATE SET p.created_at = datetime(), p.source = 'auto_register'",
+                name=project,
+            )
+        logger.info("Auto-registered project: %s", project)
+    except Exception as e:
+        logger.warning("Failed to register project '%s': %s", project, e)
 
 
 async def _ensure_init() -> None:
@@ -68,6 +98,9 @@ async def _ensure_init() -> None:
     if _current_project:
         graph_service._settings.group_id = _current_project
     await graph_service.initialize()
+    # Auto-register default project
+    if _current_project:
+        await _register_project(_current_project)
 
     # Auto-consolidate on first init (phases 1-5 only, zero OpenAI cost)
     if not _consolidation_done:
@@ -128,6 +161,7 @@ async def remember(
     await _ensure_init()
     try:
         gid = project or _current_project or None
+        await _register_project(gid)
         result = await graph_service.add_memory(content=content, source=source, name=name, group_id=gid)
         _notify_dashboard("entity:created")
         return (

@@ -1,5 +1,12 @@
 # Project Changelog
 
+## 2026-03-27 — Cross-project MCP & auto-register
+
+### Feature
+- **feat(mcp): global MCP config in `~/.claude.json`** — graphiti-memory now configured in the correct Claude Code config file, works from any project directory (not just MEMGRAP).
+- **feat(mcp): auto-register project in Neo4j** — Creates `(:Project {name})` marker node on first encounter. Dashboard can discover projects before any memories are stored.
+- **feat(mcp): improved project detection** — Supports `MEMGRAP_PROJECT` env var override. MCP instructions now tell Claude to always pass `project` param since subprocess CWD is fixed.
+
 ## 2026-03-27 — Auto-consolidation on init
 
 ### Feature
