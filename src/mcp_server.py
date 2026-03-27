@@ -231,10 +231,22 @@ async def index_codebase(
         # Full mode — re-index everything
         from src.indexer.ast_parser import parse_directory
         from src.indexer.neo4j_ingestor import CodeIndexer
+        from src.indexer.relation_extractor import extract_relations
 
         symbols = parse_directory(path, extensions=ext_set)
         indexer = CodeIndexer(graph_service.graphiti.driver, project=project_name)
         stats = await indexer.index_symbols(symbols)
+
+        # Phase 2: Extract and ingest code relationships (calls, extends, imports_from)
+        unique_files = {s.file_path for s in symbols}
+        all_relations = []
+        for fp in unique_files:
+            all_relations.extend(extract_relations(fp))
+        rel_stats = {}
+        if all_relations:
+            rel_stats = await indexer.index_relations(all_relations)
+        stats["relations"] = rel_stats
+
         _notify_dashboard("code:indexed", project_name)
         return _fmt({"status": "indexed_full", "path": path, "symbols": len(symbols), **stats})
     except Exception as e:

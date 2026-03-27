@@ -1,5 +1,10 @@
 # Project Changelog
 
+## 2026-03-27 — Fix: full-mode index_codebase missing relation extraction
+
+### Bug Fix
+- **fix(mcp): `index_codebase(full=True)` now runs Phase 2 (relation extraction)** — full mode only ran symbol extraction (Phase 1), skipping `extract_relations()` + `index_relations()`. Result: 0 CALLS/EXTENDS/IMPORTS_FROM edges. Incremental mode was unaffected. Added relation extraction loop + `index_relations()` call to full mode path in `mcp_server.py`.
+
 ## 2026-03-27 — Config: Export OPENAI_API_KEY to env
 
 ### Bug Fix
