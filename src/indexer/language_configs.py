@@ -243,7 +243,7 @@ SWIFT_QUERY = """
 
 SWIFT_RELATION_QUERY = """
 (call_expression (simple_identifier) @call.name)
-(class_declaration (type_identifier) @class.nm (inheritance_specifier (user_type (type_identifier) @extends.name)))
+(inheritance_specifier (user_type (type_identifier) @extends.name))
 (import_declaration (identifier) @import.source)
 """
 
