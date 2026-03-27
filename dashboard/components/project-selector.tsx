@@ -29,6 +29,7 @@ export function ProjectSelector() {
         body: JSON.stringify({ project: name }),
       })
       if (res.ok) {
+        setProjects((prev) => prev.filter((p) => p !== name))
         setProject(null)
         loadProjects()
       }
