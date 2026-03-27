@@ -17,7 +17,7 @@ You: "What database did we pick and why?"
 Memgrap: "PostgreSQL — chosen for JSONB support for flexible schemas" (with timestamp)
 ```
 
-**12 MCP tools** exposed to Claude Code — 7 for memory, 5 for code intelligence:
+**13 MCP tools** exposed to Claude Code — 8 for memory, 5 for code intelligence:
 
 | Tool | Cost | What it does |
 |------|------|--------------|
@@ -27,6 +27,7 @@ Memgrap: "PostgreSQL — chosen for JSONB support for flexible schemas" (with ti
 | `get_history` | OpenAI | Timeline of stored memories |
 | `search_facts` | OpenAI | Find relationships with temporal validity |
 | `consolidate_memory` | Free* | Clean duplicates, stale facts, orphans (*AI mode costs tokens) |
+| `delete_project` | Free | Delete ALL data for a project (requires `confirm=True`) |
 | `get_status` | Free | Health check |
 | `index_codebase` | Free | Parse source files with tree-sitter, write to Neo4j |
 | `find_callers` | Free | Impact analysis — who calls this function? |

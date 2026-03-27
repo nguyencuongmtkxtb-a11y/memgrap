@@ -396,6 +396,49 @@ async def consolidate_memory(
         return f"Error consolidating memory: {e}"
 
 
+@mcp.tool()
+async def delete_project(project: str, confirm: bool = False) -> str:
+    """Delete ALL data for a project from the knowledge graph.
+
+    Removes entities, episodes, facts, code index, sessions, and project marker.
+    This is IRREVERSIBLE. Set confirm=True to execute.
+
+    Args:
+        project: Project name to delete (required, cannot be empty)
+        confirm: Safety flag — must be True to actually delete (default: False)
+    """
+    await _ensure_init()
+    if not project:
+        return "Error: project name is required. Cannot delete without specifying which project."
+    if not confirm:
+        return (
+            f"⚠ DRY RUN: This would delete ALL data for project '{project}' "
+            f"(entities, episodes, facts, code index, sessions). "
+            f"To execute, call again with confirm=True."
+        )
+    try:
+        stats = await graph_service.delete_project(group_id=project)
+        _registered_projects.discard(project)
+        _notify_dashboard("project:deleted", project)
+        lines = [
+            f"Project '{project}' deleted:",
+            f"  Entities: {stats['entities_deleted']}",
+            f"  Episodes: {stats['episodes_deleted']}",
+            f"  Facts: {stats['facts_deleted']}",
+            f"  Code files: {stats['code_files_deleted']}",
+            f"  Code functions: {stats['code_functions_deleted']}",
+            f"  Code classes: {stats['code_classes_deleted']}",
+            f"  Code imports: {stats['code_imports_deleted']}",
+            f"  Sessions: {stats['sessions_deleted']}",
+            f"  Project node: {stats['project_node_deleted']}",
+            f"  Total: {stats['total_deleted']} items",
+        ]
+        return "\n".join(lines)
+    except Exception as e:
+        logger.error("delete_project failed: %s", e)
+        return f"Error deleting project: {e}"
+
+
 # --- Code Graph Tools (zero OpenAI cost — direct Neo4j queries) ---
 
 

@@ -1,5 +1,11 @@
 # Project Changelog
 
+## 2026-03-27 — Delete project tool
+
+### Feature
+- **feat(mcp): `delete_project` tool** — Removes ALL data for a project: entities, episodes, facts, code index, sessions, project marker. Safety flag `confirm=True` required. Dry-run by default shows what would be deleted.
+- **feat(graph_service): `delete_project()` method** — 6-step Cypher cleanup: entities (DETACH DELETE), episodes, orphaned RELATES_TO edges, code nodes (CodeFile/Function/Class/Import), SessionEvent, Project marker.
+
 ## 2026-03-27 — Cross-project MCP & auto-register
 
 ### Feature

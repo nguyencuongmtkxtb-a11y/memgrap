@@ -4,7 +4,7 @@
 
 ### MCP Server (`src/mcp_server.py`)
 - FastMCP with stdio transport
-- 12 tools exposed to Claude Code (7 memory + 5 code graph)
+- 13 tools exposed to Claude Code (8 memory + 5 code graph)
 - Lazy initialization on first tool call
 - **OpenAI key validation** on first tool call — clear error if missing (before Graphiti init)
 - All logging to stderr (stdout = MCP JSON-RPC)

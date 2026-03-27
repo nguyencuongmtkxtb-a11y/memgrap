@@ -477,6 +477,98 @@ class GraphService:
 
         return stats
 
+    async def delete_project(self, group_id: str) -> dict:
+        """Delete ALL data for a project (group_id) from Neo4j.
+
+        Removes: entities, episodes, edges/facts, code nodes, sessions, project marker.
+        This is irreversible.
+
+        Returns:
+            Stats dict with counts of deleted items per category.
+        """
+        if not group_id:
+            raise ValueError("group_id is required — cannot delete without a project name.")
+
+        driver = self.graphiti.driver
+        stats = {
+            "project": group_id,
+            "entities_deleted": 0,
+            "episodes_deleted": 0,
+            "facts_deleted": 0,
+            "code_files_deleted": 0,
+            "code_functions_deleted": 0,
+            "code_classes_deleted": 0,
+            "code_imports_deleted": 0,
+            "sessions_deleted": 0,
+            "project_node_deleted": 0,
+        }
+
+        async with driver.session() as session:
+            # 1. Delete entities + their relationships (Graphiti nodes)
+            result = await session.run(
+                "MATCH (n:Entity) WHERE n.group_id = $gid "
+                "DETACH DELETE n RETURN count(n) AS cnt",
+                gid=group_id,
+            )
+            record = await result.single()
+            stats["entities_deleted"] = record["cnt"] if record else 0
+
+            # 2. Delete episodes (Graphiti episodes)
+            result = await session.run(
+                "MATCH (ep:EpisodicNode) WHERE ep.group_id = $gid "
+                "DETACH DELETE ep RETURN count(ep) AS cnt",
+                gid=group_id,
+            )
+            record = await result.single()
+            stats["episodes_deleted"] = record["cnt"] if record else 0
+
+            # 3. Delete orphaned RELATES_TO edges (facts with this group_id)
+            result = await session.run(
+                "MATCH ()-[e:RELATES_TO]->() WHERE e.group_id = $gid "
+                "DELETE e RETURN count(e) AS cnt",
+                gid=group_id,
+            )
+            record = await result.single()
+            stats["facts_deleted"] = record["cnt"] if record else 0
+
+            # 4. Delete code index nodes
+            for label, key in [
+                ("CodeFile", "code_files_deleted"),
+                ("CodeFunction", "code_functions_deleted"),
+                ("CodeClass", "code_classes_deleted"),
+                ("CodeImport", "code_imports_deleted"),
+            ]:
+                result = await session.run(
+                    f"MATCH (n:{label}) WHERE n.project = $gid "
+                    "DETACH DELETE n RETURN count(n) AS cnt",
+                    gid=group_id,
+                )
+                record = await result.single()
+                stats[key] = record["cnt"] if record else 0
+
+            # 5. Delete session events
+            result = await session.run(
+                "MATCH (s:SessionEvent) WHERE s.project = $gid "
+                "DETACH DELETE s RETURN count(s) AS cnt",
+                gid=group_id,
+            )
+            record = await result.single()
+            stats["sessions_deleted"] = record["cnt"] if record else 0
+
+            # 6. Delete project marker node
+            result = await session.run(
+                "MATCH (p:Project) WHERE p.name = $gid "
+                "DETACH DELETE p RETURN count(p) AS cnt",
+                gid=group_id,
+            )
+            record = await result.single()
+            stats["project_node_deleted"] = record["cnt"] if record else 0
+
+        total = sum(v for v in stats.values() if isinstance(v, int))
+        stats["total_deleted"] = total
+        logger.info("Deleted project '%s': %d items total", group_id, total)
+        return stats
+
     async def close(self) -> None:
         """Close Graphiti and Neo4j connection."""
         if self._graphiti:
