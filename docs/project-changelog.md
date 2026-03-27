@@ -1,5 +1,30 @@
 # Project Changelog
 
+## 2026-03-27 — Code Relationship Analysis (Phase 11)
+
+### Relation Extraction Engine
+- **feat(indexer): relation queries for all 15 languages** — tree-sitter S-expression queries for function calls, class inheritance, and import sources across Python, JS, TS, JSX, TSX, Go, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
+- **feat(indexer): `relation_extractor.py`** — new module with `CodeRelation` dataclass and `extract_relations()` function, deduplication, enclosing scope detection
+- **feat(indexer): `import_resolver.py`** — resolves import source strings to indexed file paths with language-specific strategies (dotted modules, relative paths, package imports)
+- **fix(indexer): Kotlin symbol query** — tree-sitter-kotlin uses `identifier` not `simple_identifier`/`type_identifier`, and has no `interface_declaration` (interfaces are `class_declaration`)
+- **fix(indexer): Swift symbol query** — tree-sitter-swift uses `class_declaration` for structs/enums too, removed invalid `struct_declaration`/`enum_declaration`
+
+### Neo4j Relationship Ingestion
+- **feat(ingestor): `index_relations()` method** — batch upsert CALLS, EXTENDS, IMPORTS_FROM edges between existing code nodes
+- **feat(ingestor): CALLS edges** — CodeFunction -> CodeFunction (cross-file within project)
+- **feat(ingestor): EXTENDS edges** — CodeClass -> CodeClass (inheritance/implementation)
+- **feat(ingestor): IMPORTS_FROM edges** — CodeFile -> CodeFile (resolved import source)
+
+### Pipeline Integration
+- **feat(indexer): relation extraction in incremental pipeline** — after symbol indexing, extracts and ingests relations for all changed files
+- **feat(indexer): CLI relation stats** — output includes relation counts (calls, extends, imports_from)
+
+### Dashboard: Code Graph Visualization
+- **feat(dashboard): `/api/code/graph` endpoint** — returns nodes (files, functions, classes) and edges (CALLS, EXTENDS, IMPORTS_FROM) with project/search filters
+- **feat(dashboard): Code Graph page** — interactive force-directed graph with react-force-graph-2d, node type filters, relationship filters, legend, node detail panel
+- **feat(dashboard): `code-graph-viewer.tsx`** — custom canvas rendering (squares=files, circles=functions, diamonds=classes), color-coded edges by type
+- **feat(dashboard): sidebar "Code Graph" link** — new navigation entry with Network icon
+
 ## 2026-03-27 — Indexer Fixes & Global MCP Config
 
 ### Indexer Fixes

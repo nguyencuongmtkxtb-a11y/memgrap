@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from src.indexer.ast_parser import DEFAULT_IGNORE_DIRS, parse_file
+from src.indexer.relation_extractor import extract_relations
 
 logger = logging.getLogger(__name__)
 
@@ -173,12 +174,29 @@ async def run_incremental_index(
             "error": str(e),
         }
 
+    # Phase 2: Extract and ingest code relationships (calls, extends, imports_from)
+    all_relations = []
+    for fp in files_to_index:
+        try:
+            rels = extract_relations(fp)
+            all_relations.extend(rels)
+        except Exception as e:
+            logger.warning("Relation extraction error in %s: %s", fp, e)
+
+    rel_stats = {"calls": 0, "extends": 0, "imports_from": 0}
+    if all_relations:
+        try:
+            rel_stats = await indexer.index_relations(all_relations)
+        except Exception as e:
+            logger.warning("Relation ingestion error: %s", e)
+
     await driver.close()
     return {
         "new": actually_new,
         "updated": actually_updated,
         "skipped": skipped,
         "errors": 0,
+        "relations": rel_stats,
     }
 
 
@@ -221,11 +239,21 @@ def main() -> None:
         print(f"[memgrap-index] Error: {e}", file=sys.stderr)
         sys.exit(0)  # Exit cleanly — don't crash session start
 
+    rel = stats.get("relations", {})
+    rel_msg = ""
+    if rel and any(rel.values()):
+        rel_msg = (
+            f" | Relations: {rel.get('calls', 0)} calls, "
+            f"{rel.get('extends', 0)} extends, "
+            f"{rel.get('imports_from', 0)} imports_from"
+        )
+
     print(
         f"[memgrap-index] Indexed {stats['new']} new, "
         f"{stats['updated']} updated, "
         f"{stats['skipped']} skipped (unchanged)"
-        + (f", {stats['errors']} errors" if stats.get("errors") else ""),
+        + (f", {stats['errors']} errors" if stats.get("errors") else "")
+        + rel_msg,
         file=sys.stderr,
     )
 

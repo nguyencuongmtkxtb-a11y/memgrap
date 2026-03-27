@@ -35,6 +35,14 @@
 - format_edge, format_node, format_episode
 - Serialize Graphiti objects to dicts for MCP responses
 
+### Code Relationship Analysis (`src/indexer/`)
+- **`relation_extractor.py`** — extracts CodeRelation objects (calls, extends, imports_from) using tree-sitter relation queries
+- **`import_resolver.py`** — resolves import source strings to indexed file paths with language-specific strategies
+- **`language_configs.py`** — each LangConfig now has `relation_query_src` for call/inheritance/import-source patterns
+- **Neo4j edges:** CALLS (function->function), EXTENDS (class->class), IMPORTS_FROM (file->file)
+- **Pipeline:** runs after symbol indexing in `incremental_indexer.py`, relations extracted for all changed files
+- **15 languages:** Python, JS, TS, JSX, TSX, Go, Rust, Java, C, C++, C#, Ruby, PHP, Kotlin, Swift
+
 ## Data Flow
 1. Claude Code invokes MCP tool (e.g. `remember`)
 2. MCP Server delegates to GraphService
@@ -52,9 +60,9 @@
 
 ### Dashboard (`dashboard/`)
 - **Next.js 16** App Router with standalone output for Docker
-- **Pages:** Graph Explorer (react-force-graph-2d), Sessions, Code Index, Stats, Export
-- **API routes (16):** viz, nodes, nodes/[id], edges, sessions, sessions/[id], code/files, stats, health, projects, search, events (SSE), notify, export/json, import/json
-- **Components:** sidebar, graph-viewer, node-detail, code-tree, session-list, stat-cards, error-banner, error-boundary, connection-status, project-selector, search-bar, date-range-picker
+- **Pages:** Graph Explorer (react-force-graph-2d), Sessions, Code Index, Code Graph, Stats, Export
+- **API routes (17):** viz, nodes, nodes/[id], edges, sessions, sessions/[id], code/files, code/graph, stats, health, projects, search, events (SSE), notify, export/json, import/json
+- **Components:** sidebar, graph-viewer, code-graph-viewer, node-detail, code-tree, session-list, stat-cards, error-banner, error-boundary, connection-status, project-selector, search-bar, date-range-picker
 - **Contexts:** ProjectContext (project selection with localStorage persistence)
 - **Hooks:** useEventSource (SSE auto-reconnect with 5s backoff)
 - **UI:** shadcn/ui v4 + Tailwind CSS v4, dark mode only

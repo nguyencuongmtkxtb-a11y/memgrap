@@ -1,7 +1,14 @@
-"""Write parsed CodeSymbols directly to Neo4j via Cypher.
+"""Write parsed CodeSymbols and CodeRelations directly to Neo4j via Cypher.
 
 Bypasses Graphiti LLM extraction — AST data is already structured.
 Uses MERGE for idempotent upserts (re-indexing same file won't duplicate).
+
+Relationship types:
+- CONTAINS: CodeFile -> CodeFunction/CodeClass
+- IMPORTS: CodeFile -> CodeImport
+- CALLS: CodeFunction -> CodeFunction (cross-file function calls)
+- EXTENDS: CodeClass -> CodeClass (inheritance/implementation)
+- IMPORTS_FROM: CodeFile -> CodeFile (resolved import source)
 """
 
 import logging
@@ -146,3 +153,110 @@ class CodeIndexer:
             "MERGE (f)-[:IMPORTS]->(imp)",
             items=data, fp=file_path, now=now, project=self._project or "",
         )
+
+    async def index_relations(self, relations: list) -> dict:
+        """Ingest CodeRelation objects as Neo4j edges.
+
+        Creates CALLS, EXTENDS, and IMPORTS_FROM relationships between
+        existing nodes. Skips relations where target nodes don't exist.
+
+        Returns stats: {calls, extends, imports_from}.
+        """
+        if not relations:
+            return {"calls": 0, "extends": 0, "imports_from": 0}
+
+        stats = {"calls": 0, "extends": 0, "imports_from": 0}
+        now = datetime.now(timezone.utc).isoformat()
+
+        # Group by type for batch processing
+        calls = [r for r in relations if r.relation_type == "calls"]
+        extends = [r for r in relations if r.relation_type == "extends"]
+        imports_from = [r for r in relations if r.relation_type == "imports_from"]
+
+        if calls:
+            cnt = await self._upsert_calls(calls, now)
+            stats["calls"] = cnt
+
+        if extends:
+            cnt = await self._upsert_extends(extends, now)
+            stats["extends"] = cnt
+
+        if imports_from:
+            cnt = await self._upsert_imports_from(imports_from, now)
+            stats["imports_from"] = cnt
+
+        logger.info(
+            "Indexed relations: %d calls, %d extends, %d imports_from",
+            stats["calls"], stats["extends"], stats["imports_from"],
+        )
+        return stats
+
+    async def _upsert_calls(self, calls: list, now: str) -> int:
+        """Create CALLS edges between CodeFunction nodes."""
+        data = [
+            {
+                "caller": r.source_name,
+                "callee": r.target_name,
+                "fp": r.file_path,
+                "line": r.line,
+            }
+            for r in calls
+        ]
+        # Match caller function in the same file, callee in any file within project
+        result = await self._driver.execute_query(
+            "UNWIND $items AS item "
+            "MATCH (caller:CodeFunction {name: item.caller, file_path: item.fp}) "
+            "MATCH (callee:CodeFunction {name: item.callee}) "
+            "WHERE callee.project = $project "
+            "MERGE (caller)-[r:CALLS]->(callee) "
+            "SET r.line = item.line, r.updated_at = $now "
+            "RETURN count(r) AS cnt",
+            items=data, now=now, project=self._project or "",
+        )
+        return result.records[0]["cnt"] if result.records else 0
+
+    async def _upsert_extends(self, extends: list, now: str) -> int:
+        """Create EXTENDS edges between CodeClass nodes."""
+        data = [
+            {
+                "child": r.source_name,
+                "parent": r.target_name,
+                "fp": r.file_path,
+                "line": r.line,
+            }
+            for r in extends
+        ]
+        result = await self._driver.execute_query(
+            "UNWIND $items AS item "
+            "MATCH (child:CodeClass {name: item.child, file_path: item.fp}) "
+            "MATCH (parent:CodeClass {name: item.parent}) "
+            "WHERE parent.project = $project "
+            "MERGE (child)-[r:EXTENDS]->(parent) "
+            "SET r.line = item.line, r.updated_at = $now "
+            "RETURN count(r) AS cnt",
+            items=data, now=now, project=self._project or "",
+        )
+        return result.records[0]["cnt"] if result.records else 0
+
+    async def _upsert_imports_from(self, imports_from: list, now: str) -> int:
+        """Create IMPORTS_FROM edges between CodeFile nodes."""
+        data = [
+            {
+                "source_fp": r.file_path,
+                "target_path": r.target_name,
+                "line": r.line,
+            }
+            for r in imports_from
+        ]
+        # Match target CodeFile by path suffix (handles different path prefixes)
+        result = await self._driver.execute_query(
+            "UNWIND $items AS item "
+            "MATCH (src:CodeFile {path: item.source_fp}) "
+            "MATCH (tgt:CodeFile) "
+            "WHERE tgt.project = $project AND tgt.path ENDS WITH item.target_path "
+            "MERGE (src)-[r:IMPORTS_FROM]->(tgt) "
+            "SET r.line = item.line, r.updated_at = $now "
+            "RETURN count(r) AS cnt",
+            items=data, now=now, project=self._project or "",
+        )
+        return result.records[0]["cnt"] if result.records else 0
