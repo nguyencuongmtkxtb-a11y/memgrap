@@ -46,12 +46,18 @@ graph_service = GraphService(settings)
 code_graph = CodeGraphService(settings)
 
 
+_consolidation_done = False
+
+
 async def _ensure_init() -> None:
     """Lazy init: connect to Neo4j + build indices on first tool call.
 
     Validates OpenAI API key before attempting Graphiti init so the user
     gets a clear error instead of a cryptic downstream failure.
+    Auto-runs consolidate_memory (phases 1-5, zero OpenAI cost) on first init.
     """
+    global _consolidation_done
+
     if not settings.openai_api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is not set. "
@@ -62,6 +68,22 @@ async def _ensure_init() -> None:
     if _current_project:
         graph_service._settings.group_id = _current_project
     await graph_service.initialize()
+
+    # Auto-consolidate on first init (phases 1-5 only, zero OpenAI cost)
+    if not _consolidation_done:
+        _consolidation_done = True
+        try:
+            stats = await graph_service.consolidate_memory(
+                dry_run=False, use_ai=False,
+            )
+            cleaned = (
+                stats["duplicates_merged"] + stats["stale_facts_removed"]
+                + stats["episodes_pruned"] + stats["duplicate_facts_removed"]
+            )
+            if cleaned > 0:
+                logger.info("Auto-consolidation cleaned %d items: %s", cleaned, stats)
+        except Exception as e:
+            logger.warning("Auto-consolidation skipped: %s", e)
 
 
 def _fmt(data: object) -> str:

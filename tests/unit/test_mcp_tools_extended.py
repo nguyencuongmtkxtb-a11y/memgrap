@@ -591,3 +591,82 @@ async def test_consolidate_memory_no_ai_section_when_disabled(mock_gs, mock_init
 
     assert "AI Semantic Analysis" not in result
     assert "AI semantic merges" not in result
+
+
+# ---------------------------------------------------------------------------
+# Auto-consolidation on init
+# ---------------------------------------------------------------------------
+
+
+@patch("src.mcp_server.graph_service")
+async def test_auto_consolidation_runs_on_first_init(mock_gs):
+    """_ensure_init() auto-runs consolidate_memory on first init."""
+    mock_gs.initialize = AsyncMock()
+    mock_gs.consolidate_memory = AsyncMock(return_value={
+        "duplicates_merged": 1,
+        "stale_facts_found": 0,
+        "stale_facts_removed": 0,
+        "orphans_found": 0,
+        "episodes_pruned": 2,
+        "duplicate_facts_removed": 0,
+    })
+    mock_gs._settings = MagicMock()
+
+    import src.mcp_server as mod
+    original_done = mod._consolidation_done
+    original_project = mod._current_project
+    try:
+        mod._consolidation_done = False
+        mod._current_project = "test-proj"
+        await mod._ensure_init()
+
+        mock_gs.consolidate_memory.assert_awaited_once()
+        call_kwargs = mock_gs.consolidate_memory.call_args[1]
+        assert call_kwargs["dry_run"] is False
+        assert call_kwargs["use_ai"] is False
+        assert mod._consolidation_done is True
+    finally:
+        mod._consolidation_done = original_done
+        mod._current_project = original_project
+
+
+@patch("src.mcp_server.graph_service")
+async def test_auto_consolidation_skips_on_second_init(mock_gs):
+    """_ensure_init() does NOT re-run consolidation if already done."""
+    mock_gs.initialize = AsyncMock()
+    mock_gs.consolidate_memory = AsyncMock()
+    mock_gs._settings = MagicMock()
+
+    import src.mcp_server as mod
+    original_done = mod._consolidation_done
+    original_project = mod._current_project
+    try:
+        mod._consolidation_done = True  # Already done
+        mod._current_project = "test-proj"
+        await mod._ensure_init()
+
+        mock_gs.consolidate_memory.assert_not_awaited()
+    finally:
+        mod._consolidation_done = original_done
+        mod._current_project = original_project
+
+
+@patch("src.mcp_server.graph_service")
+async def test_auto_consolidation_error_does_not_crash(mock_gs):
+    """_ensure_init() catches consolidation errors gracefully."""
+    mock_gs.initialize = AsyncMock()
+    mock_gs.consolidate_memory = AsyncMock(side_effect=RuntimeError("neo4j down"))
+    mock_gs._settings = MagicMock()
+
+    import src.mcp_server as mod
+    original_done = mod._consolidation_done
+    original_project = mod._current_project
+    try:
+        mod._consolidation_done = False
+        mod._current_project = "test-proj"
+        # Should not raise
+        await mod._ensure_init()
+        assert mod._consolidation_done is True
+    finally:
+        mod._consolidation_done = original_done
+        mod._current_project = original_project

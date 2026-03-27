@@ -1,5 +1,11 @@
 # Project Changelog
 
+## 2026-03-27 — Auto-consolidation on init
+
+### Feature
+- **feat(mcp): auto-consolidate memory on first MCP init** — Phases 1-5 (zero OpenAI cost) run automatically on first tool call. Cleans duplicate entities, stale facts, orphans, old episodes, and duplicate facts without manual invocation. AI phase 6 remains opt-in via `consolidate_memory(use_ai=True)`.
+- **feat(mcp): `_consolidation_done` module flag** — ensures consolidation runs only once per MCP server lifetime, not on every tool call.
+
 ## 2026-03-27 — AI-powered semantic consolidation
 
 ### Feature
