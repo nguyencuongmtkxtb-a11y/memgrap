@@ -240,20 +240,33 @@ class CodeIndexer:
 
     async def _upsert_imports_from(self, imports_from: list, now: str) -> int:
         """Create IMPORTS_FROM edges between CodeFile nodes."""
-        data = [
-            {
-                "source_fp": r.file_path,
-                "target_path": r.target_name,
-                "line": r.line,
-            }
-            for r in imports_from
-        ]
-        # Match target CodeFile by path suffix (handles different path prefixes)
+        from src.indexer.import_resolver import resolve_import
+
+        # Fetch indexed file paths for resolution
+        result = await self._driver.execute_query(
+            "MATCH (f:CodeFile) WHERE f.project = $project RETURN f.path",
+            project=self._project or "",
+        )
+        indexed_paths = {rec["f.path"] for rec in result.records}
+
+        # Resolve import sources to actual file paths
+        data = []
+        for r in imports_from:
+            resolved = resolve_import(r.target_name, r.file_path, indexed_paths)
+            if resolved:
+                data.append({
+                    "source_fp": r.file_path,
+                    "target_fp": resolved,
+                    "line": r.line,
+                })
+
+        if not data:
+            return 0
+
         result = await self._driver.execute_query(
             "UNWIND $items AS item "
             "MATCH (src:CodeFile {path: item.source_fp}) "
-            "MATCH (tgt:CodeFile) "
-            "WHERE tgt.project = $project AND tgt.path ENDS WITH item.target_path "
+            "MATCH (tgt:CodeFile {path: item.target_fp}) "
             "MERGE (src)-[r:IMPORTS_FROM]->(tgt) "
             "SET r.line = item.line, r.updated_at = $now "
             "RETURN count(r) AS cnt",
