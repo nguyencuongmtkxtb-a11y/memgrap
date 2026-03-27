@@ -26,6 +26,7 @@
 - pydantic-settings BaseSettings
 - .env path resolved absolute from `Path(__file__)` — works regardless of CWD
 - Keys: OPENAI_API_KEY, NEO4J_URI/USER/PASSWORD, LLM_MODEL, GROUP_ID
+- **Env export:** `get_settings()` copies `OPENAI_API_KEY` to `os.environ` so Graphiti Core internals (which read env var directly) find it
 
 ### Entity Types (`src/entity_types.py`)
 - 8 Pydantic models: CodePattern, TechDecision, ProjectContext, Person, Tool, Concept, BugReport, Requirement

@@ -1,5 +1,10 @@
 # Project Changelog
 
+## 2026-03-27 — Config: Export OPENAI_API_KEY to env
+
+### Bug Fix
+- **fix(config): export OPENAI_API_KEY to `os.environ`** — Graphiti Core internals read the env var directly, bypassing the key passed via factory. pydantic-settings loads from `.env` but doesn't set `os.environ`, causing `api_key client option must be set` error on MCP tool calls.
+
 ## 2026-03-27 — Code Graph MCP Tools (Phase 12)
 
 ### New MCP Tools (5 tools, zero OpenAI cost)

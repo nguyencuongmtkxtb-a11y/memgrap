@@ -4,6 +4,7 @@ Resolves .env from project root (parent of src/) so it works
 regardless of the working directory the process is launched from.
 """
 
+import os
 from functools import lru_cache
 from pathlib import Path
 
@@ -44,5 +45,12 @@ class Settings(BaseSettings):
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:
-    """Cached singleton — avoids re-parsing .env on every call."""
-    return Settings()
+    """Cached singleton — avoids re-parsing .env on every call.
+
+    Also exports OPENAI_API_KEY to os.environ so that libraries which
+    read the env var directly (e.g. Graphiti Core internals) find it.
+    """
+    s = Settings()
+    if s.openai_api_key and not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = s.openai_api_key
+    return s
