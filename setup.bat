@@ -97,7 +97,7 @@ set "ESCAPED_DIR=%MEMGRAP_DIR:\=/%"
 :: Build JSON with env block
 > "%MCP_FILE%" echo {
 >> "%MCP_FILE%" echo   "mcpServers": {
->> "%MCP_FILE%" echo     "graphiti-memory": {
+>> "%MCP_FILE%" echo     "MEMGRAP": {
 >> "%MCP_FILE%" echo       "command": "python",
 >> "%MCP_FILE%" echo       "args": ["-m", "src.mcp_server"],
 >> "%MCP_FILE%" echo       "cwd": "%ESCAPED_DIR%",
@@ -112,7 +112,7 @@ echo       Global MCP config written: %MCP_FILE%
 :: Also keep project-level .mcp.json for backward compat
 echo {> "%MEMGRAP_DIR%\.mcp.json"
 echo   "mcpServers": {>> "%MEMGRAP_DIR%\.mcp.json"
-echo     "graphiti-memory": {>> "%MEMGRAP_DIR%\.mcp.json"
+echo     "MEMGRAP": {>> "%MEMGRAP_DIR%\.mcp.json"
 echo       "command": "python",>> "%MEMGRAP_DIR%\.mcp.json"
 echo       "args": ["-m", "src.mcp_server"]>> "%MEMGRAP_DIR%\.mcp.json"
 echo     }>> "%MEMGRAP_DIR%\.mcp.json"

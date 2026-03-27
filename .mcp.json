@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "graphiti-memory": {
+    "MEMGRAP": {
       "command": "python",
       "args": ["-m", "src.mcp_server"],
       "cwd": "D:/MEMGRAP"

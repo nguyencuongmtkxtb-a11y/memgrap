@@ -83,7 +83,7 @@ mkdir -p "$MCP_DIR"
 cat > "$MCP_DIR/mcp.json" <<MCPEOF
 {
   "mcpServers": {
-    "graphiti-memory": {
+    "MEMGRAP": {
       "command": "$PYTHON",
       "args": ["-m", "src.mcp_server"],
       "cwd": "$MEMGRAP_DIR",
@@ -100,7 +100,7 @@ echo "       Global MCP config written: $MCP_DIR/mcp.json"
 cat > "$MEMGRAP_DIR/.mcp.json" <<MCPEOF
 {
   "mcpServers": {
-    "graphiti-memory": {
+    "MEMGRAP": {
       "command": "$PYTHON",
       "args": ["-m", "src.mcp_server"]
     }

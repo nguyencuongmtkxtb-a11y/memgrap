@@ -36,7 +36,7 @@ _current_project: str = os.environ.get("MEMGRAP_PROJECT", "") or Path.cwd().name
 # --- Server & service setup ---
 
 mcp = FastMCP(
-    "Graphiti Memory",
+    "MEMGRAP",
     instructions=(
         "Persistent memory for Claude Code backed by a temporal knowledge graph. "
         "Use 'remember' to store decisions, patterns, context. "

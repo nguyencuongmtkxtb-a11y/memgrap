@@ -438,7 +438,7 @@ Nội dung đúng sẽ có dạng:
 ```json
 {
   "mcpServers": {
-    "graphiti-memory": {
+    "MEMGRAP": {
       "command": "python",
       "args": ["-m", "src.mcp_server"],
       "cwd": "<đường-dẫn-tới-thư-mục-memgrap>"
