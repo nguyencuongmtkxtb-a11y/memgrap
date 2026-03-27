@@ -4,7 +4,7 @@
 
 ### MCP Server (`src/mcp_server.py`)
 - FastMCP with stdio transport
-- 7 tools exposed to Claude Code
+- 12 tools exposed to Claude Code (7 memory + 5 code graph)
 - Lazy initialization on first tool call
 - **OpenAI key validation** on first tool call — clear error if missing (before Graphiti init)
 - All logging to stderr (stdout = MCP JSON-RPC)
@@ -34,6 +34,12 @@
 ### Result Formatters (`src/result_formatters.py`)
 - format_edge, format_node, format_episode
 - Serialize Graphiti objects to dicts for MCP responses
+
+### Code Graph Service (`src/code_graph_service.py`)
+- Async Neo4j driver for code graph queries, independent from Graphiti/OpenAI
+- 5 MCP tools: `find_callers`, `find_callees`, `find_class_hierarchy`, `find_file_imports`, `search_code`
+- Direct Cypher queries against code nodes/edges — zero OpenAI cost
+- Uses CALLS, EXTENDS, IMPORTS_FROM edges created by relation extraction pipeline
 
 ### Code Relationship Analysis (`src/indexer/`)
 - **`relation_extractor.py`** — extracts CodeRelation objects (calls, extends, imports_from) using tree-sitter relation queries

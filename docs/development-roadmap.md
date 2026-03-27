@@ -70,6 +70,11 @@ JSON export (`GET /api/export/json?project=`) with downloadable file. JSON impor
 
 Tree-sitter relation queries for function calls, class inheritance, and import sources across all 15 languages. `relation_extractor.py` with CodeRelation dataclass. `import_resolver.py` for language-specific import path resolution. Neo4j edges: CALLS (function->function), EXTENDS (class->class), IMPORTS_FROM (file->file). Integrated into incremental indexer pipeline. Dashboard Code Graph page with interactive force-directed visualization (react-force-graph-2d), node/edge type filters, and node detail panel. Fixed broken Kotlin and Swift tree-sitter queries.
 
+## Phase 12 — Code Graph MCP Tools
+**Status:** Complete
+
+5 new MCP tools for direct Neo4j code graph queries (zero OpenAI cost). `find_callers`, `find_callees`, `find_class_hierarchy`, `find_file_imports`, `search_code`. New `src/code_graph_service.py` module with async Neo4j driver, independent from Graphiti/OpenAI. Total MCP tools: 12 (7 memory + 5 code graph). `.mcp.json` updated with cwd.
+
 ## Stability & Portability (Cross-cutting)
 **Status:** Complete
 

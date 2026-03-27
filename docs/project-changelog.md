@@ -1,5 +1,21 @@
 # Project Changelog
 
+## 2026-03-27 — Code Graph MCP Tools (Phase 12)
+
+### New MCP Tools (5 tools, zero OpenAI cost)
+- **feat(mcp): `find_callers(function_name, project)`** — impact analysis, returns all functions that call the given function
+- **feat(mcp): `find_callees(function_name, project)`** — execution flow, returns all functions called by the given function
+- **feat(mcp): `find_class_hierarchy(class_name, project)`** — inheritance tree (parents + children)
+- **feat(mcp): `find_file_imports(file_path, project)`** — module dependencies (imports + imported_by)
+- **feat(mcp): `search_code(query, project, limit)`** — search functions/classes/files by name pattern
+
+### Code Graph Service
+- **feat: `src/code_graph_service.py`** — async Neo4j driver for code graph queries, independent from Graphiti/OpenAI stack
+- **chore: `.mcp.json` updated** — includes cwd configuration
+
+### MCP Tool Count
+- Total MCP tools: 12 (7 memory + 5 code graph)
+
 ## 2026-03-27 — Code Relationship Analysis (Phase 11)
 
 ### Relation Extraction Engine
