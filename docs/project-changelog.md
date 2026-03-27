@@ -5,6 +5,7 @@
 ### Bug Fixes
 - **fix(mcp): `index_codebase(full=True)` now runs Phase 2 (relation extraction)** — full mode only ran symbol extraction (Phase 1), skipping `extract_relations()` + `index_relations()`. Result: 0 CALLS/EXTENDS/IMPORTS_FROM edges. Incremental mode was unaffected.
 - **fix(ingestor): `_upsert_imports_from` now resolves import paths via `import_resolver`** — raw dotted module names (e.g. `src.config`) never matched `CodeFile.path` (e.g. `D:/MEMGRAP/src/config.py`). Now calls `resolve_import()` to convert import strings to actual file paths before MERGE. Result: 0 → 51 IMPORTS_FROM edges.
+- **fix(ingestor): `_upsert_extends` creates placeholder nodes for external parent classes** — parent classes from external packages (e.g. `BaseModel`, `BaseSettings`, `Component`) didn't exist as CodeClass nodes, so EXTENDS edges were never created. Now uses MERGE with `external=true` flag for missing parents. Result: 0 → 10 EXTENDS edges.
 
 ## 2026-03-27 — Config: Export OPENAI_API_KEY to env
 

@@ -216,7 +216,11 @@ class CodeIndexer:
         return result.records[0]["cnt"] if result.records else 0
 
     async def _upsert_extends(self, extends: list, now: str) -> int:
-        """Create EXTENDS edges between CodeClass nodes."""
+        """Create EXTENDS edges between CodeClass nodes.
+
+        Creates placeholder CodeClass nodes (external=true) for parent classes
+        not found in the project, so inheritance queries always return results.
+        """
         data = [
             {
                 "child": r.source_name,
@@ -229,8 +233,8 @@ class CodeIndexer:
         result = await self._driver.execute_query(
             "UNWIND $items AS item "
             "MATCH (child:CodeClass {name: item.child, file_path: item.fp}) "
-            "MATCH (parent:CodeClass {name: item.parent}) "
-            "WHERE parent.project = $project "
+            "MERGE (parent:CodeClass {name: item.parent, project: $project}) "
+            "ON CREATE SET parent.external = true, parent.indexed_at = $now "
             "MERGE (child)-[r:EXTENDS]->(parent) "
             "SET r.line = item.line, r.updated_at = $now "
             "RETURN count(r) AS cnt",
