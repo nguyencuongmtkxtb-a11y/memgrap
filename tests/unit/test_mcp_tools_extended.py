@@ -3,8 +3,6 @@
 import json
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 
 def _parse_json(text: str):
     try:
@@ -35,17 +33,21 @@ async def test_remember_project_param(mock_gs, mock_init):
 
 @patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
 @patch("src.mcp_server.graph_service")
-async def test_remember_empty_project_passes_none(mock_gs, mock_init):
-    """remember() with empty project string passes group_id=None."""
+async def test_remember_empty_project_uses_auto_detected(mock_gs, mock_init):
+    """remember() with empty project string uses _current_project from CWD."""
     mock_gs.add_memory = AsyncMock(return_value={
         "nodes_count": 0, "edges_count": 0, "nodes": [], "facts": [],
     })
 
-    from src.mcp_server import remember
-    await remember(content="test", project="")
-
-    call_kwargs = mock_gs.add_memory.call_args[1]
-    assert call_kwargs["group_id"] is None
+    import src.mcp_server as mod
+    original = mod._current_project
+    try:
+        mod._current_project = "test-project"
+        await mod.remember(content="test", project="")
+        call_kwargs = mock_gs.add_memory.call_args[1]
+        assert call_kwargs["group_id"] == "test-project"
+    finally:
+        mod._current_project = original
 
 
 # ---------------------------------------------------------------------------
@@ -334,3 +336,65 @@ async def test_index_codebase_error_handling(mock_gs, mock_init):
 
     assert result.startswith("Error indexing codebase:")
     assert "disk full" in result
+
+
+# ---------------------------------------------------------------------------
+# Auto-detect project from CWD
+# ---------------------------------------------------------------------------
+
+
+async def test_current_project_is_cwd_name():
+    """_current_project is set to Path.cwd().name at module load."""
+    from pathlib import Path
+
+    import src.mcp_server as mod
+    assert mod._current_project == Path.cwd().name
+
+
+@patch("src.mcp_server._ensure_init", new_callable=AsyncMock)
+@patch("src.mcp_server.graph_service")
+async def test_get_status_includes_current_project(mock_gs, mock_init):
+    """get_status() response includes current_project field."""
+    mock_gs.get_status = AsyncMock(return_value={
+        "status": "healthy", "initialized": True,
+    })
+
+    import src.mcp_server as mod
+    original = mod._current_project
+    try:
+        mod._current_project = "my-proj"
+        result = await mod.get_status()
+        parsed = _parse_json(result)
+        assert parsed["current_project"] == "my-proj"
+    finally:
+        mod._current_project = original
+
+
+@patch("src.mcp_server.code_graph")
+async def test_code_graph_tools_use_auto_detected_project(mock_cg):
+    """Code graph tools pass _current_project when project param is empty."""
+    mock_cg.find_callers = AsyncMock(return_value=[])
+
+    import src.mcp_server as mod
+    original = mod._current_project
+    try:
+        mod._current_project = "auto-proj"
+        await mod.find_callers(function_name="foo")
+        mock_cg.find_callers.assert_awaited_once_with("foo", "auto-proj")
+    finally:
+        mod._current_project = original
+
+
+@patch("src.mcp_server.code_graph")
+async def test_code_graph_tools_explicit_project_overrides(mock_cg):
+    """Code graph tools use explicit project over _current_project."""
+    mock_cg.search_code = AsyncMock(return_value=[])
+
+    import src.mcp_server as mod
+    original = mod._current_project
+    try:
+        mod._current_project = "auto-proj"
+        await mod.search_code(query="test", project="explicit-proj")
+        mock_cg.search_code.assert_awaited_once_with("test", "explicit-proj", 20)
+    finally:
+        mod._current_project = original

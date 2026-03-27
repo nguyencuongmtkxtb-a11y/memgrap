@@ -1,5 +1,19 @@
 # Project Changelog
 
+## 2026-03-27 — Auto-detect project from CWD
+
+### Feature
+- **feat(mcp): auto-detect project from CWD for all tools** — MCP server reads `Path.cwd().name` at startup and uses it as default `group_id` for memory tools and `project` for code graph tools. No manual `project` param needed — explicit values still override.
+- **feat(mcp): `_current_project` module variable** — set once at import time from CWD name (e.g. "MEMGRAP", "2net")
+- **feat(mcp): `_ensure_init()` sets `graph_service._settings.group_id`** — ensures Graphiti Core defaults to project-scoped group
+- **feat(mcp): `get_status()` includes `current_project`** — users can verify which project is auto-detected
+
+### Tools Updated (12 tools)
+- Memory tools (5): `remember`, `recall`, `understand_code`, `get_history`, `search_facts` — fallback `group_id=_current_project`
+- Code graph tools (5): `find_callers`, `find_callees`, `find_class_hierarchy`, `find_file_imports`, `search_code` — fallback `project=_current_project`
+- `get_status` — adds `current_project` to response
+- `index_codebase` — unchanged (already derives project from `path` param)
+
 ## 2026-03-27 — Fix: index all supported extensions by default
 
 ### Bug Fix

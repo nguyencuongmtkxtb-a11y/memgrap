@@ -10,6 +10,7 @@ import json
 import logging
 import sys
 import urllib.request
+from pathlib import Path
 
 from mcp.server.fastmcp import FastMCP
 
@@ -24,6 +25,9 @@ logging.basicConfig(
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
 logger = logging.getLogger("memgrap")
+
+# --- Auto-detect project from CWD ---
+_current_project: str = Path.cwd().name
 
 # --- Server & service setup ---
 
@@ -54,6 +58,9 @@ async def _ensure_init() -> None:
             "Add it to your .env file or set the environment variable. "
             "See .env.example for reference."
         )
+    # Set auto-detected project as default group_id for Graphiti
+    if _current_project:
+        graph_service._settings.group_id = _current_project
     await graph_service.initialize()
 
 
@@ -98,7 +105,8 @@ async def remember(
     """
     await _ensure_init()
     try:
-        result = await graph_service.add_memory(content=content, source=source, name=name, group_id=project or None)
+        gid = project or _current_project or None
+        result = await graph_service.add_memory(content=content, source=source, name=name, group_id=gid)
         _notify_dashboard("entity:created")
         return (
             f"Stored. Extracted {result['nodes_count']} entities, "
@@ -124,7 +132,8 @@ async def recall(query: str, num_results: int = 10, project: str = "") -> str:
     """
     await _ensure_init()
     try:
-        results = await graph_service.recall(query=query, num_results=num_results, group_id=project or None)
+        gid = project or _current_project or None
+        results = await graph_service.recall(query=query, num_results=num_results, group_id=gid)
         if not results:
             return "No relevant memories found."
         return _fmt(results)
@@ -146,7 +155,8 @@ async def understand_code(query: str, num_results: int = 10, project: str = "") 
     """
     await _ensure_init()
     try:
-        results = await graph_service.search_nodes(query=query, num_results=num_results, group_id=project or None)
+        gid = project or _current_project or None
+        results = await graph_service.search_nodes(query=query, num_results=num_results, group_id=gid)
         if not results:
             return "No code entities found."
         return _fmt(results)
@@ -167,7 +177,8 @@ async def get_history(last_n: int = 10, project: str = "") -> str:
     """
     await _ensure_init()
     try:
-        episodes = await graph_service.get_episodes(last_n=last_n, group_id=project or None)
+        gid = project or _current_project or None
+        episodes = await graph_service.get_episodes(last_n=last_n, group_id=gid)
         if not episodes:
             return "No memory history found."
         return _fmt(episodes)
@@ -190,7 +201,8 @@ async def search_facts(query: str, num_results: int = 10, project: str = "") -> 
     """
     await _ensure_init()
     try:
-        results = await graph_service.search_facts(query=query, num_results=num_results, group_id=project or None)
+        gid = project or _current_project or None
+        results = await graph_service.search_facts(query=query, num_results=num_results, group_id=gid)
         if not results:
             return "No facts found."
         return _fmt(results)
@@ -215,7 +227,8 @@ async def index_codebase(
 
     Args:
         path: Directory path to index (e.g. "D:/myproject/src")
-        extensions: Comma-separated extensions (default: all supported — .py,.js,.ts,.tsx,.jsx,.go,.rs,.java,.c,.cpp,.cs,.rb,.php,.kt,.swift)
+        extensions: Comma-separated extensions (default: all supported)
+            Supported: .py,.js,.ts,.tsx,.jsx,.go,.rs,.java,.c,.cpp,.cs,.rb,.php,.kt,.swift
         full: Force full re-index instead of incremental (default: False)
     """
     await _ensure_init()
@@ -268,6 +281,7 @@ async def get_status() -> str:
     """
     await _ensure_init()
     status = await graph_service.get_status()
+    status["current_project"] = _current_project
     return _fmt(status)
 
 
@@ -285,7 +299,7 @@ async def find_callers(function_name: str, project: str = "") -> str:
         project: Optional project filter
     """
     try:
-        results = await code_graph.find_callers(function_name, project)
+        results = await code_graph.find_callers(function_name, project or _current_project)
         if not results:
             return f"No callers found for '{function_name}'."
         return _fmt(results)
@@ -304,7 +318,7 @@ async def find_callees(function_name: str, project: str = "") -> str:
         project: Optional project filter
     """
     try:
-        results = await code_graph.find_callees(function_name, project)
+        results = await code_graph.find_callees(function_name, project or _current_project)
         if not results:
             return f"No callees found for '{function_name}'."
         return _fmt(results)
@@ -323,7 +337,7 @@ async def find_class_hierarchy(class_name: str, project: str = "") -> str:
         project: Optional project filter
     """
     try:
-        results = await code_graph.find_class_hierarchy(class_name, project)
+        results = await code_graph.find_class_hierarchy(class_name, project or _current_project)
         if not results:
             return f"No hierarchy found for '{class_name}'."
         return _fmt(results)
@@ -343,7 +357,7 @@ async def find_file_imports(file_path: str, project: str = "") -> str:
         project: Optional project filter
     """
     try:
-        results = await code_graph.find_file_imports(file_path, project)
+        results = await code_graph.find_file_imports(file_path, project or _current_project)
         if not results:
             return f"No import relationships found for '{file_path}'."
         return _fmt(results)
@@ -363,7 +377,7 @@ async def search_code(query: str, project: str = "", limit: int = 20) -> str:
         limit: Max results (default: 20)
     """
     try:
-        results = await code_graph.search_code(query, project, limit)
+        results = await code_graph.search_code(query, project or _current_project, limit)
         if not results:
             return f"No code symbols matching '{query}'."
         return _fmt(results)
