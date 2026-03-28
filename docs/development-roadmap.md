@@ -18,7 +18,7 @@ Auto-capture git context (branch, recent commits, changed files) on session star
 ## Phase 4 — Dashboard UI
 **Status:** Complete (all fixes shipped)
 
-Next.js 16 dashboard with 4 pages (Graph Explorer, Sessions, Code Index, Stats) and 8 API routes. shadcn/ui v4 + Tailwind CSS v4, dark mode only. Docker standalone build.
+Next.js 16 dashboard with 7 pages (Graph Explorer, Sessions, Code Index, Code Graph, Stats, Export, Settings) and 18 API routes. shadcn/ui v4 + Tailwind CSS v4, dark mode only. Docker standalone build. Settings page with OpenAI API key validation and Neo4j connection testing.
 
 **Fixes shipped:**
 - Neo4j DateTime/Date type conversion (`toPlain()` helper)

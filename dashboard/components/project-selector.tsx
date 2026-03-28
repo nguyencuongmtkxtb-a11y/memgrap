@@ -33,7 +33,7 @@ export function ProjectSelector() {
         setProject(null)
         loadProjects()
       }
-    } catch { /* ignore */ }
+    } catch (err) { console.error('Failed to delete project:', err) }
     setDeleting(null)
   }
 

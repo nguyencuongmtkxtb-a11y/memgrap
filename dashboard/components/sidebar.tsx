@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { GitGraph, Clock, FileCode2, BarChart3, Download, Network } from 'lucide-react'
+import { GitGraph, Clock, FileCode2, BarChart3, Download, Network, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { ConnectionStatus } from '@/components/connection-status'
 import { ProjectSelector } from '@/components/project-selector'
@@ -14,6 +14,7 @@ const NAV = [
   { href: '/code-graph', label: 'Code Graph', icon: Network },
   { href: '/stats', label: 'Stats', icon: BarChart3 },
   { href: '/export', label: 'Export', icon: Download },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ]
 
 export function Sidebar() {

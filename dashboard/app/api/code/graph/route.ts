@@ -74,9 +74,7 @@ export async function GET(req: NextRequest) {
       `MATCH (a)-[r]->(b)
        WHERE type(r) IN ['CALLS', 'EXTENDS', 'IMPORTS_FROM']
          ${relFilter}
-         AND ($project = '' OR (
-           CASE WHEN a:CodeFile THEN a.project ELSE a.project END = $project
-         ))
+         AND ($project = '' OR a.project = $project)
        RETURN elementId(a) AS source, elementId(b) AS target,
               type(r) AS type, r.line AS line
        LIMIT $limit`,

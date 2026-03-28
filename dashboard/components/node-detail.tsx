@@ -79,12 +79,12 @@ export function NodeDetail({ node, connections, onClose }: NodeDetailProps) {
                 className="border border-border rounded p-2 space-y-1"
               >
                 <p className="text-xs font-mono text-muted-foreground">
-                  {String(c.rel.type ?? c.rel.label ?? 'RELATES_TO')}
+                  {String(c.rel?.type ?? c.rel?.label ?? 'RELATES_TO')}
                 </p>
                 <p className="text-xs truncate">
                   {String(c.neighbor.name ?? c.neighbor._id ?? '')}
                 </p>
-                {c.rel.fact ? (
+                {c.rel?.fact ? (
                   <p className="text-xs text-muted-foreground">
                     {String(c.rel.fact)}
                   </p>

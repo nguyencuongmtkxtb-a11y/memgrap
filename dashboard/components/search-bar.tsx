@@ -61,6 +61,7 @@ export function SearchBar() {
     session: 'Session',
     code: 'File',
     function: 'Function',
+    class: 'Class',
   }
 
   return (

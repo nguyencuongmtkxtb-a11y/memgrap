@@ -1,5 +1,18 @@
 # Project Changelog
 
+## 2026-03-28 — Settings page + bug fixes
+
+### Feature
+- **feat(dashboard): Settings page** — New `/settings` page with 3 sections: OpenAI API Key management (masked display + test validation), Neo4j Connection status (test button with feedback), System Info (LLM/embedding model display).
+- **feat(dashboard): API key validation endpoint** — `POST /api/settings/test-openai` validates OpenAI keys server-side by calling `/v1/models`. Accepts optional key in body or falls back to env var.
+- **feat(dashboard): Settings config endpoint** — `GET /api/settings` returns masked API key, Neo4j connection status, and system config from env vars.
+
+### Bug Fixes
+- **fix(dashboard): silent error on project delete** — `project-selector.tsx` now logs errors instead of swallowing them.
+- **fix(dashboard): undefined rel access in node detail** — `node-detail.tsx` uses optional chaining for `c.rel?.type` and `c.rel?.fact`.
+- **fix(dashboard): missing 'Class' type label in search** — `search-bar.tsx` now maps `class` → `Class` in search results.
+- **fix(dashboard): dead CASE in code graph query** — `code/graph/route.ts` simplified duplicate CASE branches to direct `a.project = $project`.
+
 ## 2026-03-27 — Delete project tool
 
 ### Feature
