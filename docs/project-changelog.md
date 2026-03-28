@@ -7,6 +7,9 @@
 - **feat(dashboard): API key validation endpoint** — `POST /api/settings/test-openai` validates OpenAI keys server-side by calling `/v1/models`. Accepts optional key in body or falls back to env var.
 - **feat(dashboard): Settings config endpoint** — `GET /api/settings` returns masked API key, Neo4j connection status, and system config from env vars.
 
+### Improvement
+- **fix(dashboard): show neighbor nodes when searching in code graph** — When filtering by search term, connected neighbor nodes are now fetched so edges remain visible instead of showing isolated matched nodes.
+
 ### Bug Fixes
 - **fix(dashboard): silent error on project delete** — `project-selector.tsx` now logs errors instead of swallowing them.
 - **fix(dashboard): undefined rel access in node detail** — `node-detail.tsx` uses optional chaining for `c.rel?.type` and `c.rel?.fact`.
