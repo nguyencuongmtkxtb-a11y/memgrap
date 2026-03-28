@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
       { project, relType, limit }
     )
 
-    const nodes: GraphNode[] = nodeRows.map(r => ({
+    let nodes: GraphNode[] = nodeRows.map(r => ({
       id: r.id,
       label: r.label,
       type: r.type as GraphNode['type'],
@@ -95,6 +95,47 @@ export async function GET(req: NextRequest) {
       type: r.type as GraphEdge['type'],
       line: r.line ?? undefined,
     }))
+
+    // When searching, also fetch neighbor nodes so edges remain visible
+    if (search && nodes.length > 0) {
+      const matchedIds = nodes.map(n => n.id)
+      const neighborRows = await runQuery<{
+        id: string; label: string; type: string;
+        language: string | null; project: string | null
+      }>(
+        `UNWIND $ids AS nid
+         MATCH (a)-[r]-(b)
+         WHERE elementId(a) = nid
+           AND type(r) IN ['CALLS', 'EXTENDS', 'IMPORTS_FROM', 'CONTAINS']
+         WITH DISTINCT b
+         WHERE NOT elementId(b) IN $ids
+         RETURN elementId(b) AS id,
+                CASE
+                  WHEN b:CodeFile THEN
+                    CASE WHEN size(split(b.path, '/')) > 1
+                      THEN split(b.path, '/')[-1] ELSE b.path END
+                  ELSE b.name END AS label,
+                CASE WHEN b:CodeFile THEN 'file'
+                     WHEN b:CodeFunction THEN 'function'
+                     ELSE 'class' END AS type,
+                b.language AS language, b.project AS project
+         LIMIT $limit`,
+        { ids: matchedIds, limit }
+      )
+      const existingIds = new Set(matchedIds)
+      for (const r of neighborRows) {
+        if (!existingIds.has(r.id)) {
+          existingIds.add(r.id)
+          nodes.push({
+            id: r.id,
+            label: r.label,
+            type: r.type as GraphNode['type'],
+            language: r.language ?? undefined,
+            project: r.project ?? undefined,
+          })
+        }
+      }
+    }
 
     // Filter edges to only include nodes we have
     const nodeIds = new Set(nodes.map(n => n.id))
